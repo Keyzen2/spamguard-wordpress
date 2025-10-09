@@ -78,19 +78,16 @@
             var progressInterval = null;
             
             // Start scan button
-            $(document).on('click', '.spamguard-start-scan', function() {
-                var scanType = $(this).data('scan-type');
+            $(document).on('click', '.spamguard-start-scan, .scan-btn', function() {
                 var $button = $(this);
+                var scanType = $button.data('scan-type') || 'quick';
                 var originalText = $button.text();
                 
-                // Store original text
-                $button.data('original-text', originalText);
-                
-                if (!confirm('Start ' + scanType + ' scan? This may take several minutes.')) {
+                if (!confirm('Iniciar escaneo ' + scanType + '? Esto puede tardar varios minutos.')) {
                     return;
                 }
                 
-                $button.prop('disabled', true).text('Starting...');
+                $button.prop('disabled', true).text('Iniciando...');
                 
                 $.ajax({
                     url: spamguardData.ajaxurl,
@@ -104,24 +101,33 @@
                         if (response.success) {
                             currentScanId = response.data.scan_id;
                             
-                            // Show progress section
-                            $('#spamguard-scan-progress').slideDown();
+                            // Mostrar barra de progreso
+                            $('#spamguard-scan-progress, #scan-progress-container').slideDown();
                             
-                            // Scroll to progress
+                            // Ocultar botones
+                            $('.scan-btn').hide();
+                            
+                            // Scroll
                             $('html, body').animate({
-                                scrollTop: $('#spamguard-scan-progress').offset().top - 50
+                                scrollTop: $('#spamguard-scan-progress, #scan-progress-container').offset().top - 50
                             }, 500);
                             
-                            // Start polling
+                            // ✅ Iniciar polling
                             SpamGuard.pollScanProgress(currentScanId);
                             
                         } else {
-                            alert(response.data.message || 'Error starting scan');
+                            alert(response.data.message || 'Error al iniciar escaneo');
                             $button.prop('disabled', false).text(originalText);
+                            
+                            // Si hay redirect, redirigir
+                            if (response.data.redirect) {
+                                window.location.href = response.data.redirect;
+                            }
                         }
                     },
-                    error: function() {
-                        alert('Connection error. Please try again.');
+                    error: function(xhr, status, error) {
+                        console.error('Error AJAX:', error);
+                        alert('Error de conexión. Por favor, inténtalo de nuevo.');
                         $button.prop('disabled', false).text(originalText);
                     }
                 });
@@ -132,7 +138,20 @@
          * Poll scan progress
          */
         pollScanProgress: function(scanId) {
+            var self = this;
+            var attempts = 0;
+            var maxAttempts = 300; // 5 minutos (300 * 1 segundo)
+            
             var progressInterval = setInterval(function() {
+                attempts++;
+                
+                // Timeout después de 5 minutos
+                if (attempts > maxAttempts) {
+                    clearInterval(progressInterval);
+                    $('#scan-status-message').html('⚠️ El escaneo está tardando más de lo esperado. Por favor, recarga la página.');
+                    return;
+                }
+                
                 $.ajax({
                     url: spamguardData.ajaxurl,
                     type: 'POST',
@@ -145,37 +164,55 @@
                         if (response.success) {
                             var data = response.data;
                             
-                            // Update progress bar
-                            $('#scan-progress-fill')
-                                .css('width', data.progress + '%')
-                                .text(data.progress + '%');
+                            console.log('Scan progress:', data); // Debug
                             
-                            // Update stats
-                            $('#scan-files-scanned').text(data.files_scanned.toLocaleString());
-                            $('#scan-threats-found').text(data.threats_found.toLocaleString());
-                            $('#scan-status').text(data.status.charAt(0).toUpperCase() + data.status.slice(1));
+                            // Actualizar barra de progreso
+                            $('#scan-progress-fill, .scan-progress-fill').css('width', data.progress + '%').text(data.progress + '%');
                             
-                            // Check if completed
+                            // Actualizar estadísticas
+                            $('#scan-files-scanned, #files-scanned').text(self.formatNumber(data.files_scanned));
+                            $('#scan-threats-found, #threats-found').text(self.formatNumber(data.threats_found));
+                            $('#scan-status, #scan-status-message').text(self.capitalize(data.status));
+                            
+                            // Verificar si completó
                             if (data.status === 'completed' || data.status === 'failed') {
                                 clearInterval(progressInterval);
                                 
-                                // Change progress bar color
+                                // Cambiar color de la barra
                                 if (data.threats_found > 0) {
-                                    $('#scan-progress-fill').css('background', 'linear-gradient(90deg, #d63638, #f86368)');
+                                    $('#scan-progress-fill, .scan-progress-fill').css('background', '#d63638');
                                 } else {
-                                    $('#scan-progress-fill').css('background', 'linear-gradient(90deg, #00a32a, #5fb830)');
+                                    $('#scan-progress-fill, .scan-progress-fill').css('background', '#00a32a');
                                 }
                                 
-                                // Reload page after 2 seconds
+                                // Mensaje final
+                                var message = data.status === 'completed' 
+                                    ? '✅ Escaneo completado. Recargando página...'
+                                    : '❌ El escaneo falló. Por favor, inténtalo de nuevo.';
+                                
+                                $('#scan-status-message').html(message);
+                                
+                                // Recargar después de 2 segundos
                                 setTimeout(function() {
                                     location.reload();
                                 }, 2000);
                             }
                         }
+                    },
+                    error: function() {
+                        console.error('Error polling scan progress');
                     }
                 });
-            }, 2000); // Poll every 2 seconds
+            }, 1000); // Polling cada 1 segundo
         },
+        
+        /**
+         * Capitalize string
+         */
+        capitalize: function(str) {
+            if (!str) return '';
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
         
         /**
          * Initialize threat actions
@@ -430,4 +467,5 @@
         
     };
     
+
 })(jQuery);
