@@ -46,6 +46,7 @@ function spamguard_load_core_classes() {
         'includes/dashboard/class-antivirus-dashboard.php',
         'includes/modules/antivirus/class-antivirus-scanner.php',
         'includes/modules/antivirus/class-antivirus-results.php',
+        'includes/modules/vulnerabilities/class-vulnerability-checker.php',
     );
     
     foreach ($core_files as $file) {
@@ -344,6 +345,28 @@ class SpamGuard {
             KEY threat_id (threat_id)
         ) $charset_collate;";
         dbDelta($sql_quarantine);
+
+        // 🆕 NUEVA TABLA: Vulnerabilidades detectadas
+        $table_vulnerabilities = $wpdb->prefix . 'spamguard_vulnerabilities';
+        $sql_vulnerabilities = "CREATE TABLE IF NOT EXISTS $table_vulnerabilities (
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            component_type varchar(20) NOT NULL,
+            component_slug varchar(255) NOT NULL,
+            component_version varchar(50) NOT NULL,
+            cve_id varchar(50),
+            severity varchar(20) NOT NULL,
+            title text NOT NULL,
+            description text,
+            vuln_type varchar(50),
+            patched_in varchar(50),
+            reference_urls longtext,
+            detected_at datetime NOT NULL,
+            PRIMARY KEY (id),
+            KEY component_type (component_type),
+            KEY severity (severity),
+            KEY detected_at (detected_at)
+        ) $charset_collate;";
+        dbDelta($sql_vulnerabilities);
     }
     
     /**
@@ -457,6 +480,7 @@ function spamguard_is_configured() {
 
 // Inicializar el plugin
 spamguard();
+
 
 
 
