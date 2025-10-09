@@ -9,12 +9,7 @@
  * Author: SpamGuard Team
  * Author URI: https://spamguard.ai
  * License: GPL v2 or later
- * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: spamguard
- * Domain Path: /languages
- * 
- * @package SpamGuard
- * @version 3.0.0
  */
 
 if (!defined('ABSPATH')) {
@@ -27,26 +22,23 @@ define('SPAMGUARD_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SPAMGUARD_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SPAMGUARD_PLUGIN_BASENAME', plugin_basename(__FILE__));
 
-// API por defecto (puedes cambiarlo en settings)
 if (!defined('SPAMGUARD_API_URL')) {
     define('SPAMGUARD_API_URL', 'https://api.spamguard.ai/api/v1');
 }
 
 /**
- * Autoloader simple para clases
+ * Autoloader mejorado
  */
 spl_autoload_register(function($class) {
-    // Solo autoload clases de SpamGuard
     if (strpos($class, 'SpamGuard_') !== 0) {
         return;
     }
     
-    // Convertir nombre de clase a nombre de archivo
     $class_file = str_replace('_', '-', strtolower($class));
     $class_file = 'class-' . $class_file . '.php';
     
-    // Directorios donde buscar
-    $directories = array(
+    // Buscar en orden de prioridad
+    $search_paths = array(
         SPAMGUARD_PLUGIN_DIR . 'includes/',
         SPAMGUARD_PLUGIN_DIR . 'includes/api/',
         SPAMGUARD_PLUGIN_DIR . 'includes/modules/antispam/',
@@ -54,14 +46,48 @@ spl_autoload_register(function($class) {
         SPAMGUARD_PLUGIN_DIR . 'includes/dashboard/',
     );
     
-    foreach ($directories as $directory) {
-        $file = $directory . $class_file;
+    foreach ($search_paths as $path) {
+        $file = $path . $class_file;
         if (file_exists($file)) {
             require_once $file;
             return;
         }
     }
+    
+    // Debug: Log si no encuentra la clase
+    if (defined('WP_DEBUG') && WP_DEBUG) {
+        error_log("SpamGuard: No se pudo cargar la clase {$class}. Buscando: {$class_file}");
+    }
 });
+
+/**
+ * Cargar archivos críticos manualmente (por si el autoloader falla)
+ */
+function spamguard_load_core_files() {
+    $core_files = array(
+        'includes/class-spamguard-core.php',
+        'includes/class-spamguard-admin.php',
+        'includes/api/class-spamguard-api-client.php',
+        'includes/api/class-spamguard-api-cache.php',
+        'includes/api/class-spamguard-api-helper.php',
+        'includes/dashboard/class-spamguard-dashboard-controller.php',
+    );
+    
+    foreach ($core_files as $file) {
+        $path = SPAMGUARD_PLUGIN_DIR . $file;
+        if (file_exists($path)) {
+            require_once $path;
+        } else {
+            // Log error si falta archivo crítico
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("SpamGuard ERROR: Archivo crítico no encontrado: {$file}");
+            }
+        }
+    }
+}
+
+// Cargar archivos core antes de plugins_loaded
+spamguard_load_core_files();
 
 /**
  * Clase principal del plugin
@@ -70,9 +96,6 @@ class SpamGuard {
     
     private static $instance = null;
     
-    /**
-     * Get singleton instance
-     */
     public static function get_instance() {
         if (null === self::$instance) {
             self::$instance = new self();
@@ -80,59 +103,41 @@ class SpamGuard {
         return self::$instance;
     }
     
-    /**
-     * Constructor
-     */
     private function __construct() {
-        $this->init();
-    }
-    
-    /**
-     * Inicializar plugin
-     */
-    private function init() {
-        // Load textdomain
-        add_action('plugins_loaded', array($this, 'load_textdomain'));
-        
-        // Initialize components
-        add_action('plugins_loaded', array($this, 'init_components'));
-        
-        // Activation & Deactivation
+        // Registrar hooks de activación/desactivación INMEDIATAMENTE
         register_activation_hook(__FILE__, array($this, 'activate'));
         register_deactivation_hook(__FILE__, array($this, 'deactivate'));
         
-        // Admin notices
-        add_action('admin_notices', array($this, 'admin_notices'));
+        // Inicializar en plugins_loaded
+        add_action('plugins_loaded', array($this, 'init'), 5);
+    }
+    
+    public function init() {
+        // Cargar textdomain
+        load_plugin_textdomain('spamguard', false, dirname(SPAMGUARD_PLUGIN_BASENAME) . '/languages');
+        
+        // Inicializar componentes
+        $this->init_components();
         
         // Admin assets
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
+        
+        // Admin notices
+        add_action('admin_notices', array($this, 'admin_notices'));
     }
     
-    /**
-     * Cargar traducciones
-     */
-    public function load_textdomain() {
-        load_plugin_textdomain(
-            'spamguard',
-            false,
-            dirname(SPAMGUARD_PLUGIN_BASENAME) . '/languages'
-        );
-    }
-    
-    /**
-     * Inicializar componentes
-     */
     public function init_components() {
-        // Core components (siempre cargar)
+        // SIEMPRE inicializar Admin (para que aparezca el menú)
+        if (is_admin() && class_exists('SpamGuard_Admin')) {
+            SpamGuard_Admin::get_instance();
+        }
+        
+        // Core
         if (class_exists('SpamGuard_Core')) {
             SpamGuard_Core::get_instance();
         }
         
-        if (class_exists('SpamGuard_Admin')) {
-            SpamGuard_Admin::get_instance();
-        }
-        
-        // API Client (siempre disponible)
+        // API Client
         if (class_exists('SpamGuard_API_Client')) {
             SpamGuard_API_Client::get_instance();
         }
@@ -142,11 +147,7 @@ class SpamGuard {
             SpamGuard_Dashboard_Controller::get_instance();
         }
         
-        if (class_exists('SpamGuard_Antivirus_Dashboard')) {
-            SpamGuard_Antivirus_Dashboard::get_instance();
-        }
-        
-        // Solo cargar módulos activos si está configurado
+        // Solo si está configurado
         if ($this->is_configured()) {
             // Anti-spam filter
             if (class_exists('SpamGuard_Filter')) {
@@ -155,35 +156,48 @@ class SpamGuard {
             
             // Antivirus (si está habilitado)
             if (get_option('spamguard_antivirus_enabled', true)) {
-                if (class_exists('SpamGuard_Antivirus_Scanner')) {
-                    SpamGuard_Antivirus_Scanner::get_instance();
-                }
-                
-                if (class_exists('SpamGuard_Antivirus_Results')) {
-                    SpamGuard_Antivirus_Results::get_instance();
-                }
+                $this->load_antivirus_modules();
             }
         }
     }
     
-    /**
-     * Verificar si el plugin está configurado
-     */
+    private function load_antivirus_modules() {
+        $antivirus_files = array(
+            'includes/modules/antivirus/class-spamguard-antivirus-scanner.php',
+            'includes/modules/antivirus/class-spamguard-antivirus-dashboard.php',
+            'includes/modules/antivirus/class-spamguard-antivirus-results.php',
+        );
+        
+        foreach ($antivirus_files as $file) {
+            $path = SPAMGUARD_PLUGIN_DIR . $file;
+            if (file_exists($path)) {
+                require_once $path;
+            }
+        }
+        
+        if (class_exists('SpamGuard_Antivirus_Scanner')) {
+            SpamGuard_Antivirus_Scanner::get_instance();
+        }
+        
+        if (class_exists('SpamGuard_Antivirus_Dashboard')) {
+            SpamGuard_Antivirus_Dashboard::get_instance();
+        }
+        
+        if (class_exists('SpamGuard_Antivirus_Results')) {
+            SpamGuard_Antivirus_Results::get_instance();
+        }
+    }
+    
     public function is_configured() {
         $api_key = get_option('spamguard_api_key');
         return !empty($api_key);
     }
     
-    /**
-     * Cargar assets del admin
-     */
     public function enqueue_admin_assets($hook) {
-        // Solo en páginas de SpamGuard
         if (strpos($hook, 'spamguard') === false) {
             return;
         }
         
-        // CSS
         wp_enqueue_style(
             'spamguard-admin',
             SPAMGUARD_PLUGIN_URL . 'assets/css/admin.css',
@@ -191,7 +205,6 @@ class SpamGuard {
             SPAMGUARD_VERSION
         );
         
-        // JS
         wp_enqueue_script(
             'spamguard-admin',
             SPAMGUARD_PLUGIN_URL . 'assets/js/admin.js',
@@ -200,7 +213,6 @@ class SpamGuard {
             true
         );
         
-        // Localize script
         wp_localize_script('spamguard-admin', 'spamguardData', array(
             'ajaxurl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('spamguard_ajax'),
@@ -213,53 +225,31 @@ class SpamGuard {
         ));
     }
     
-    /**
-     * Activación del plugin
-     */
     public function activate() {
-        // Crear tablas
         $this->create_tables();
-        
-        // Configuración por defecto
         $this->set_default_options();
-        
-        // Flush rewrite rules
         flush_rewrite_rules();
-        
-        // Set activation flag para mostrar notice
         set_transient('spamguard_activated', true, 60);
     }
     
-    /**
-     * Desactivación del plugin
-     */
     public function deactivate() {
-        // Clear caches
         if (class_exists('SpamGuard_API_Cache')) {
             SpamGuard_API_Cache::get_instance()->flush();
         }
-        
-        // Clear scheduled events
         wp_clear_scheduled_hook('spamguard_daily_cleanup');
         wp_clear_scheduled_hook('spamguard_auto_scan');
-        
-        // Flush rewrite rules
         flush_rewrite_rules();
     }
     
-    /**
-     * Crear tablas de base de datos
-     */
     private function create_tables() {
         global $wpdb;
-        
         $charset_collate = $wpdb->get_charset_collate();
         
-        $sql = array();
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         
-        // Tabla de logs de uso (v3.0)
+        // Tabla de uso
         $table_usage = $wpdb->prefix . 'spamguard_usage';
-        $sql[] = "CREATE TABLE IF NOT EXISTS $table_usage (
+        $sql_usage = "CREATE TABLE IF NOT EXISTS $table_usage (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             category varchar(50) NOT NULL,
             confidence decimal(5,4) NOT NULL,
@@ -271,10 +261,11 @@ class SpamGuard {
             KEY category (category),
             KEY created_at (created_at)
         ) $charset_collate;";
+        dbDelta($sql_usage);
         
-        // Tabla de logs de spam detectado
+        // Tabla de logs
         $table_logs = $wpdb->prefix . 'spamguard_logs';
-        $sql[] = "CREATE TABLE IF NOT EXISTS $table_logs (
+        $sql_logs = "CREATE TABLE IF NOT EXISTS $table_logs (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             comment_id bigint(20) DEFAULT NULL,
             comment_author varchar(255) DEFAULT NULL,
@@ -291,10 +282,11 @@ class SpamGuard {
             KEY comment_id (comment_id),
             KEY created_at (created_at)
         ) $charset_collate;";
+        dbDelta($sql_logs);
         
-        // Tabla de escaneos (antivirus)
+        // Tablas del antivirus
         $table_scans = $wpdb->prefix . 'spamguard_scans';
-        $sql[] = "CREATE TABLE IF NOT EXISTS $table_scans (
+        $sql_scans = "CREATE TABLE IF NOT EXISTS $table_scans (
             id varchar(36) NOT NULL,
             site_id varchar(255) DEFAULT NULL,
             scan_type varchar(50) NOT NULL,
@@ -309,10 +301,10 @@ class SpamGuard {
             KEY status (status),
             KEY started_at (started_at)
         ) $charset_collate;";
+        dbDelta($sql_scans);
         
-        // Tabla de amenazas
         $table_threats = $wpdb->prefix . 'spamguard_threats';
-        $sql[] = "CREATE TABLE IF NOT EXISTS $table_threats (
+        $sql_threats = "CREATE TABLE IF NOT EXISTS $table_threats (
             id varchar(36) NOT NULL,
             scan_id varchar(36) DEFAULT NULL,
             site_id varchar(255) DEFAULT NULL,
@@ -329,10 +321,10 @@ class SpamGuard {
             KEY status (status),
             KEY severity (severity)
         ) $charset_collate;";
+        dbDelta($sql_threats);
         
-        // Tabla de cuarentena
         $table_quarantine = $wpdb->prefix . 'spamguard_quarantine';
-        $sql[] = "CREATE TABLE IF NOT EXISTS $table_quarantine (
+        $sql_quarantine = "CREATE TABLE IF NOT EXISTS $table_quarantine (
             id varchar(36) NOT NULL,
             threat_id varchar(36) DEFAULT NULL,
             site_id varchar(255) DEFAULT NULL,
@@ -344,45 +336,27 @@ class SpamGuard {
             PRIMARY KEY (id),
             KEY threat_id (threat_id)
         ) $charset_collate;";
-        
-        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-        foreach ($sql as $query) {
-            dbDelta($query);
-        }
+        dbDelta($sql_quarantine);
     }
     
-    /**
-     * Configuración por defecto
-     */
     private function set_default_options() {
-        // API Configuration
         add_option('spamguard_api_url', SPAMGUARD_API_URL);
         add_option('spamguard_api_key', '');
-        
-        // Anti-Spam Settings
         add_option('spamguard_sensitivity', 50);
         add_option('spamguard_auto_delete', true);
         add_option('spamguard_active_learning', true);
         add_option('spamguard_skip_registered', true);
         add_option('spamguard_use_honeypot', true);
         add_option('spamguard_time_check', 3);
-        
-        // Antivirus Settings
         add_option('spamguard_antivirus_enabled', true);
         add_option('spamguard_auto_scan', 'weekly');
         add_option('spamguard_email_notifications', true);
         add_option('spamguard_notification_email', get_option('admin_email'));
-        
-        // v3.0 specific
         add_option('spamguard_version', SPAMGUARD_VERSION);
         add_option('spamguard_first_install', current_time('mysql'));
     }
     
-    /**
-     * Admin notices
-     */
     public function admin_notices() {
-        // Notice de bienvenida después de activación
         if (get_transient('spamguard_activated')) {
             delete_transient('spamguard_activated');
             
@@ -407,7 +381,7 @@ class SpamGuard {
             }
         }
         
-        // Notice si no está configurado y estamos en páginas de SpamGuard
+        // Notice si no está configurado
         $screen = get_current_screen();
         if ($screen && strpos($screen->id, 'spamguard') !== false && !$this->is_configured()) {
             ?>
@@ -425,26 +399,17 @@ class SpamGuard {
     }
 }
 
-/**
- * Inicializar plugin
- */
+// Inicializar el plugin
 function spamguard_init() {
     return SpamGuard::get_instance();
 }
+add_action('init', 'spamguard_init', 1);
 
-// Start the plugin
-add_action('plugins_loaded', 'spamguard_init', 10);
-
-/**
- * Helper function para obtener instancia de API client
- */
+// Helper functions
 function spamguard_api() {
     return SpamGuard_API_Client::get_instance();
 }
 
-/**
- * Helper function para verificar si está configurado
- */
 function spamguard_is_configured() {
     return SpamGuard::get_instance()->is_configured();
 }
