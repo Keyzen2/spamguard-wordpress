@@ -35,6 +35,8 @@ class SpamGuard_Core {
         add_action('wp_ajax_spamguard_test_api', array($this, 'ajax_test_api'));
         add_action('wp_ajax_spamguard_send_feedback', array($this, 'ajax_send_feedback'));
         add_action('spamguard_daily_cleanup', array($this, 'daily_cleanup'));
+        add_action('wp_ajax_spamguard_register_site', array($this, 'ajax_register_site'));
+        add_action('wp_ajax_spamguard_test_connection', array($this, 'ajax_test_connection'));
         
         // Schedule cron if not scheduled
         if (!wp_next_scheduled('spamguard_daily_cleanup')) {
@@ -343,4 +345,5 @@ class SpamGuard_Core {
         );
     }
 }
+
 
