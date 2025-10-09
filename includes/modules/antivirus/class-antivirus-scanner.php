@@ -413,6 +413,15 @@ class SpamGuard_Antivirus_Scanner {
             wp_send_json_error(array('message' => __('Permission denied', 'spamguard')));
         }
         
+        // ✅ AÑADIR ESTA VALIDACIÓN
+        if (!SpamGuard::get_instance()->is_configured()) {
+            wp_send_json_error(array(
+                'message' => __('SpamGuard no está configurado. Por favor, genera tu API Key primero.', 'spamguard'),
+                'redirect' => admin_url('admin.php?page=spamguard-settings')
+            ));
+            return;
+        }
+        
         $scan_type = isset($_POST['scan_type']) ? sanitize_text_field($_POST['scan_type']) : 'quick';
         
         $result = $this->start_scan($scan_type);
@@ -635,4 +644,5 @@ class SpamGuard_Antivirus_Scanner {
 }
 
 // Registrar acción para procesar scans
+
 add_action('spamguard_process_scan', array(SpamGuard_Antivirus_Scanner::get_instance(), 'process_scan'));
