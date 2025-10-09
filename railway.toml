@@ -1,0 +1,19 @@
+[[services]]
+name = "spamguard-api"
+dockerfile = "Dockerfile"
+
+[services.env]
+PORT = "8000"
+
+[[services]]
+name = "vulnerability-updater"
+dockerfile = "Dockerfile"
+
+[services.cron]
+schedule = "0 2 * * *"  # Diariamente a las 2 AM UTC
+command = "python scripts/update_vulnerabilities.py"
+
+[services.env]
+SUPABASE_URL = "${{ SUPABASE_URL }}"
+SUPABASE_KEY = "${{ SUPABASE_KEY }}"
+GITHUB_TOKEN = "${{ GITHUB_TOKEN }}"
