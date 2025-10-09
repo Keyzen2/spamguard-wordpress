@@ -47,8 +47,16 @@ class SpamGuard_API {
      * Constructor
      */
     private function __construct() {
+        // ✅ URL base SIN /api/v1 al final
         $this->api_base_url = get_option('spamguard_api_url', 'https://spamguard.up.railway.app');
         $this->api_key = get_option('spamguard_api_key', '');
+        
+        // ✅ Limpiar la URL si tiene /api/v1 al final
+        $this->api_base_url = rtrim($this->api_base_url, '/');
+        if (substr($this->api_base_url, -7) === '/api/v1') {
+            $this->api_base_url = substr($this->api_base_url, 0, -7);
+            update_option('spamguard_api_url', $this->api_base_url);
+        }
     }
     
     /**
@@ -92,6 +100,13 @@ class SpamGuard_API {
             'admin_email' => $admin_email
         );
         
+        // Log de debug
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('SpamGuard: Intentando registrar sitio');
+            error_log('SpamGuard: URL base: ' . $this->api_base_url);
+            error_log('SpamGuard: Datos: ' . json_encode($data));
+        }
+        
         // ✅ Endpoint correcto: /api/v1/register-site (POST)
         $response = $this->make_request('/api/v1/register-site', $data, 'POST', false);
         
@@ -107,6 +122,11 @@ class SpamGuard_API {
             // Guardar API key automáticamente
             update_option('spamguard_api_key', $response['api_key']);
             $this->api_key = $response['api_key'];
+            
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('SpamGuard: ✅ Sitio registrado exitosamente');
+                error_log('SpamGuard: API Key: ' . substr($response['api_key'], 0, 10) . '...');
+            }
             
             return array(
                 'success' => true,
@@ -142,7 +162,9 @@ class SpamGuard_API {
         
         // Si hay error, usar fallback local
         if (isset($response['error'])) {
-            error_log('SpamGuard: API error - ' . $response['message']);
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('SpamGuard: API error - ' . $response['message']);
+            }
             
             // Usar análisis local como fallback
             if (class_exists('SpamGuard_Local_Fallback')) {
@@ -264,7 +286,7 @@ class SpamGuard_API {
             error_log(sprintf(
                 'SpamGuard API Response: %s | Body: %s',
                 $status_code,
-                substr($body, 0, 200)
+                substr($body, 0, 500)
             ));
         }
         
