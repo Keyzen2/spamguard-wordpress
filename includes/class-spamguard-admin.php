@@ -2,7 +2,7 @@
 /**
  * SpamGuard Admin Class
  * 
- * Maneja todas las páginas del admin
+ * Maneja todas las páginas del panel de administración
  * 
  * @package SpamGuard
  * @version 3.0.0
@@ -27,7 +27,7 @@ class SpamGuard_Admin {
     }
     
     /**
-     * Constructor
+     * Constructor privado (singleton)
      */
     private function __construct() {
         add_action('admin_menu', array($this, 'register_menu_pages'));
@@ -35,31 +35,31 @@ class SpamGuard_Admin {
     }
     
     /**
-     * Registrar páginas del menú
+     * Registrar páginas del menú en WordPress admin
      */
     public function register_menu_pages() {
-        // Dashboard principal
+        // Página principal: Dashboard
         add_menu_page(
-            __('SpamGuard', 'spamguard'),
-            __('SpamGuard', 'spamguard'),
-            'manage_options',
-            'spamguard',
-            array($this, 'render_main_dashboard'),
-            'dashicons-shield',
-            30
+            __('SpamGuard', 'spamguard'),           // Page title
+            __('SpamGuard', 'spamguard'),           // Menu title
+            'manage_options',                        // Capability
+            'spamguard',                            // Menu slug
+            array($this, 'render_main_dashboard'),  // Callback
+            'dashicons-shield',                     // Icon
+            30                                      // Position
         );
         
-        // Dashboard (mismo que arriba, para el submenu)
+        // Submenú: Dashboard (mismo que arriba)
         add_submenu_page(
-            'spamguard',
-            __('Dashboard', 'spamguard'),
-            __('Dashboard', 'spamguard'),
-            'manage_options',
-            'spamguard',
-            array($this, 'render_main_dashboard')
+            'spamguard',                            // Parent slug
+            __('Dashboard', 'spamguard'),           // Page title
+            __('Dashboard', 'spamguard'),           // Menu title
+            'manage_options',                        // Capability
+            'spamguard',                            // Menu slug
+            array($this, 'render_main_dashboard')   // Callback
         );
         
-        // Antivirus
+        // Submenú: Antivirus
         add_submenu_page(
             'spamguard',
             __('Antivirus', 'spamguard'),
@@ -69,7 +69,17 @@ class SpamGuard_Admin {
             array($this, 'render_antivirus_page')
         );
         
-        // Settings
+        // Submenú: Vulnerabilities
+        add_submenu_page(
+            'spamguard',
+            __('Vulnerabilities', 'spamguard'),
+            __('Vulnerabilities', 'spamguard'),
+            'manage_options',
+            'spamguard-vulnerabilities',
+            array($this, 'render_vulnerabilities_page')
+        );
+        
+        // Submenú: Settings
         add_submenu_page(
             'spamguard',
             __('Settings', 'spamguard'),
@@ -81,17 +91,22 @@ class SpamGuard_Admin {
     }
     
     /**
-     * Registrar settings
+     * Registrar settings de WordPress
      */
     public function register_settings() {
+        // API Configuration
         register_setting('spamguard_settings', 'spamguard_api_url');
         register_setting('spamguard_settings', 'spamguard_api_key');
+        
+        // Anti-Spam Settings
         register_setting('spamguard_settings', 'spamguard_sensitivity');
         register_setting('spamguard_settings', 'spamguard_auto_delete');
         register_setting('spamguard_settings', 'spamguard_active_learning');
         register_setting('spamguard_settings', 'spamguard_skip_registered');
         register_setting('spamguard_settings', 'spamguard_use_honeypot');
         register_setting('spamguard_settings', 'spamguard_time_check');
+        
+        // Antivirus Settings
         register_setting('spamguard_settings', 'spamguard_antivirus_enabled');
         register_setting('spamguard_settings', 'spamguard_auto_scan');
         register_setting('spamguard_settings', 'spamguard_email_notifications');
@@ -105,6 +120,11 @@ class SpamGuard_Admin {
         if (class_exists('SpamGuard_Dashboard_Controller')) {
             $dashboard = SpamGuard_Dashboard_Controller::get_instance();
             $dashboard->render_dashboard();
+        } else {
+            echo '<div class="wrap">';
+            echo '<h1>' . __('SpamGuard Dashboard', 'spamguard') . '</h1>';
+            echo '<p>' . __('Dashboard controller not found.', 'spamguard') . '</p>';
+            echo '</div>';
         }
     }
     
@@ -115,16 +135,41 @@ class SpamGuard_Admin {
         if (class_exists('SpamGuard_Antivirus_Dashboard')) {
             $dashboard = SpamGuard_Antivirus_Dashboard::get_instance();
             $dashboard->render();
+        } else {
+            echo '<div class="wrap">';
+            echo '<h1>' . __('Antivirus', 'spamguard') . '</h1>';
+            echo '<p>' . __('Antivirus module not found.', 'spamguard') . '</p>';
+            echo '</div>';
         }
     }
     
     /**
-     * Renderizar página de configuración (v3.0)
+     * Renderizar página de vulnerabilidades
+     */
+    public function render_vulnerabilities_page() {
+        // Intentar cargar el template
+        $template_file = SPAMGUARD_PLUGIN_DIR . 'templates/vulnerabilities/dashboard.php';
+        
+        if (file_exists($template_file)) {
+            include $template_file;
+        } else {
+            // Fallback si el template no existe
+            echo '<div class="wrap">';
+            echo '<h1>' . __('Vulnerabilities', 'spamguard') . '</h1>';
+            echo '<div class="notice notice-warning">';
+            echo '<p>' . __('Vulnerability scanner template not found. Please ensure all plugin files are properly installed.', 'spamguard') . '</p>';
+            echo '</div>';
+            echo '</div>';
+        }
+    }
+    
+    /**
+     * Renderizar página de settings
      */
     public function render_settings_page() {
         // Verificar permisos
         if (!current_user_can('manage_options')) {
-            wp_die(__('You do not have sufficient permissions to access this page.'));
+            wp_die(__('You do not have sufficient permissions to access this page.', 'spamguard'));
         }
         
         // Procesar generación de API key
@@ -163,6 +208,7 @@ class SpamGuard_Admin {
             $usage_info = $api_client->get_usage();
         }
         
+        // Renderizar el formulario de settings
         ?>
         <div class="wrap spamguard-settings">
             <h1>
@@ -172,72 +218,52 @@ class SpamGuard_Admin {
             
             <?php settings_errors('spamguard_messages'); ?>
             
-            <?php if (!empty($api_key)): ?>
-                <!-- Usage Stats Card -->
-                <div class="spamguard-card" style="background: #fff; padding: 20px; margin: 20px 0; border-left: 4px solid #2271b1; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <h2 style="margin-top: 0;"><?php _e('Your Account', 'spamguard'); ?></h2>
+            <?php if (!empty($api_key) && $usage_info): ?>
+            <!-- Card de información de cuenta -->
+            <div class="spamguard-account-card" style="background: #fff; padding: 20px; margin: 20px 0; border-left: 4px solid #2271b1; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <h2 style="margin-top: 0;"><?php _e('Your Account', 'spamguard'); ?></h2>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0;">
+                    <div>
+                        <div style="font-size: 24px; font-weight: bold; color: #2271b1;">
+                            <?php echo number_format($usage_info['current_month']['requests']); ?>
+                        </div>
+                        <div style="color: #666;">
+                            <?php _e('Requests This Month', 'spamguard'); ?>
+                        </div>
+                    </div>
                     
-                    <?php if ($usage_info): ?>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0;">
-                            <div>
-                                <div style="font-size: 24px; font-weight: bold; color: #2271b1;">
-                                    <?php echo number_format($usage_info['current_month']['requests']); ?>
-                                </div>
-                                <div style="color: #666;">
-                                    <?php _e('Requests This Month', 'spamguard'); ?>
-                                </div>
-                            </div>
-                            
-                            <div>
-                                <div style="font-size: 24px; font-weight: bold; color: #50575e;">
-                                    <?php echo number_format($usage_info['limit']); ?>
-                                </div>
-                                <div style="color: #666;">
-                                    <?php _e('Monthly Limit', 'spamguard'); ?>
-                                </div>
-                            </div>
-                            
-                            <div>
-                                <div style="font-size: 24px; font-weight: bold; color: <?php echo $usage_info['percentage_used'] > 80 ? '#d63638' : '#00a32a'; ?>;">
-                                    <?php echo number_format($usage_info['percentage_used'], 1); ?>%
-                                </div>
-                                <div style="color: #666;">
-                                    <?php _e('Used', 'spamguard'); ?>
-                                </div>
-                            </div>
+                    <div>
+                        <div style="font-size: 24px; font-weight: bold; color: #50575e;">
+                            <?php echo number_format($usage_info['limit']); ?>
                         </div>
-                        
-                        <!-- Progress bar -->
-                        <div style="background: #f0f0f1; height: 8px; border-radius: 4px; overflow: hidden;">
-                            <div style="background: <?php echo $usage_info['percentage_used'] > 80 ? '#d63638' : '#2271b1'; ?>; height: 100%; width: <?php echo min($usage_info['percentage_used'], 100); ?>%;"></div>
+                        <div style="color: #666;">
+                            <?php _e('Monthly Limit', 'spamguard'); ?>
                         </div>
-                        
-                        <?php if ($usage_info['percentage_used'] > 80): ?>
-                            <p style="color: #d63638; margin-top: 10px;">
-                                <strong><?php _e('Warning:', 'spamguard'); ?></strong>
-                                <?php _e('You are approaching your monthly limit. Requests will continue to work using local fallback after the limit.', 'spamguard'); ?>
-                            </p>
-                        <?php endif; ?>
-                    <?php endif; ?>
+                    </div>
                     
-                    <?php if ($account_info): ?>
-                        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
-                            <p>
-                                <strong><?php _e('Plan:', 'spamguard'); ?></strong>
-                                <span style="background: #00a32a; color: white; padding: 2px 8px; border-radius: 3px; text-transform: uppercase; font-size: 11px;">
-                                    <?php echo esc_html($account_info['plan']); ?>
-                                </span>
-                            </p>
-                            <p>
-                                <strong><?php _e('Email:', 'spamguard'); ?></strong>
-                                <?php echo esc_html($account_info['email']); ?>
-                            </p>
-                            <p style="color: #666; font-size: 12px;">
-                                <?php printf(__('Member since %s', 'spamguard'), date_i18n(get_option('date_format'), strtotime($account_info['created_at']))); ?>
-                            </p>
+                    <div>
+                        <div style="font-size: 24px; font-weight: bold; color: <?php echo $usage_info['percentage_used'] > 80 ? '#d63638' : '#00a32a'; ?>;">
+                            <?php echo number_format($usage_info['percentage_used'], 1); ?>%
                         </div>
-                    <?php endif; ?>
+                        <div style="color: #666;">
+                            <?php _e('Used', 'spamguard'); ?>
+                        </div>
+                    </div>
                 </div>
+                
+                <!-- Progress bar -->
+                <div style="background: #f0f0f1; height: 8px; border-radius: 4px; overflow: hidden;">
+                    <div style="background: <?php echo $usage_info['percentage_used'] > 80 ? '#d63638' : '#2271b1'; ?>; height: 100%; width: <?php echo min($usage_info['percentage_used'], 100); ?>%;"></div>
+                </div>
+                
+                <?php if ($usage_info['percentage_used'] > 80): ?>
+                <p style="color: #d63638; margin-top: 10px;">
+                    <strong><?php _e('Warning:', 'spamguard'); ?></strong>
+                    <?php _e('You are approaching your monthly limit.', 'spamguard'); ?>
+                </p>
+                <?php endif; ?>
+            </div>
             <?php endif; ?>
             
             <form method="post" action="">
@@ -245,7 +271,9 @@ class SpamGuard_Admin {
                 
                 <table class="form-table">
                     
-                    <!-- API Configuration -->
+                    <!-- ======================================== -->
+                    <!-- API CONFIGURATION -->
+                    <!-- ======================================== -->
                     <tr>
                         <th colspan="2">
                             <h2><?php _e('API Configuration', 'spamguard'); ?></h2>
@@ -257,9 +285,14 @@ class SpamGuard_Admin {
                             <label for="spamguard_api_url"><?php _e('API URL', 'spamguard'); ?></label>
                         </th>
                         <td>
-                            <input type="url" name="spamguard_api_url" id="spamguard_api_url" value="<?php echo esc_attr($api_url); ?>" class="regular-text" />
+                            <input type="url" 
+                                   name="spamguard_api_url" 
+                                   id="spamguard_api_url" 
+                                   value="<?php echo esc_attr($api_url); ?>" 
+                                   class="regular-text" />
                             <p class="description">
-                                <?php _e('Default:', 'spamguard'); ?> <code><?php echo SPAMGUARD_API_URL; ?></code>
+                                <?php _e('Default:', 'spamguard'); ?> 
+                                <code><?php echo SPAMGUARD_API_URL; ?></code>
                             </p>
                         </td>
                     </tr>
@@ -270,29 +303,43 @@ class SpamGuard_Admin {
                         </th>
                         <td>
                             <?php if (empty($api_key)): ?>
-                                <!-- No hay API key - mostrar formulario de generación -->
+                                <!-- NO HAY API KEY - Mostrar formulario de generación -->
                                 <div style="background: #f0f6fc; border: 1px solid #0c5c99; padding: 20px; border-radius: 4px;">
-                                    <h3 style="margin-top: 0;"><?php _e('Generate Your Free API Key', 'spamguard'); ?> 🎉</h3>
+                                    <h3 style="margin-top: 0;">
+                                        <?php _e('Generate Your Free API Key', 'spamguard'); ?> 🎉
+                                    </h3>
                                     <p><?php _e('Get started with 1,000 free requests per month. No credit card required!', 'spamguard'); ?></p>
                                     
                                     <?php wp_nonce_field('spamguard_generate_api_key'); ?>
                                     
                                     <p>
                                         <label for="admin_email"><?php _e('Email:', 'spamguard'); ?></label><br>
-                                        <input type="email" name="admin_email" id="admin_email" value="<?php echo esc_attr(get_option('admin_email')); ?>" class="regular-text" required />
+                                        <input type="email" 
+                                               name="admin_email" 
+                                               id="admin_email" 
+                                               value="<?php echo esc_attr(get_option('admin_email')); ?>" 
+                                               class="regular-text" 
+                                               required />
                                     </p>
                                     
                                     <p>
-                                        <button type="submit" name="spamguard_generate_api_key" class="button button-primary button-hero">
+                                        <button type="submit" 
+                                                name="spamguard_generate_api_key" 
+                                                class="button button-primary button-hero">
                                             <?php _e('Generate API Key', 'spamguard'); ?> →
                                         </button>
                                     </p>
                                 </div>
                             <?php else: ?>
-                                <!-- Hay API key - mostrar -->
-                                <input type="text" name="spamguard_api_key" id="spamguard_api_key" value="<?php echo esc_attr($api_key); ?>" class="regular-text" readonly />
+                                <!-- YA HAY API KEY - Mostrar campo -->
+                                <input type="text" 
+                                       name="spamguard_api_key" 
+                                       id="spamguard_api_key" 
+                                       value="<?php echo esc_attr($api_key); ?>" 
+                                       class="regular-text" 
+                                       readonly />
                                 <p class="description">
-                                    <?php _e('Your API key is configured and working.', 'spamguard'); ?>
+                                    ✅ <?php _e('Your API key is configured and working.', 'spamguard'); ?>
                                     <br>
                                     <a href="#" onclick="if(confirm('<?php _e('Are you sure you want to clear the API key?', 'spamguard'); ?>')) { jQuery('#spamguard_api_key').val('').prop('readonly', false); } return false;">
                                         <?php _e('Clear API Key', 'spamguard'); ?>
@@ -304,7 +351,9 @@ class SpamGuard_Admin {
                     
                     <?php if (!empty($api_key)): ?>
                     
-                    <!-- Anti-Spam Settings -->
+                    <!-- ======================================== -->
+                    <!-- ANTI-SPAM SETTINGS -->
+                    <!-- ======================================== -->
                     <tr>
                         <th colspan="2">
                             <h2><?php _e('Anti-Spam Settings', 'spamguard'); ?></h2>
@@ -316,7 +365,13 @@ class SpamGuard_Admin {
                             <label for="spamguard_sensitivity"><?php _e('Sensitivity', 'spamguard'); ?></label>
                         </th>
                         <td>
-                            <input type="range" name="spamguard_sensitivity" id="spamguard_sensitivity" value="<?php echo esc_attr($sensitivity); ?>" min="0" max="100" step="5" />
+                            <input type="range" 
+                                   name="spamguard_sensitivity" 
+                                   id="spamguard_sensitivity" 
+                                   value="<?php echo esc_attr($sensitivity); ?>" 
+                                   min="0" 
+                                   max="100" 
+                                   step="5" />
                             <span id="sensitivity_value"><?php echo $sensitivity; ?>%</span>
                             <p class="description">
                                 <?php _e('Higher values = more aggressive spam detection', 'spamguard'); ?>
@@ -335,7 +390,10 @@ class SpamGuard_Admin {
                         <th scope="row"><?php _e('Auto-delete Spam', 'spamguard'); ?></th>
                         <td>
                             <label>
-                                <input type="checkbox" name="spamguard_auto_delete" value="1" <?php checked($auto_delete); ?> />
+                                <input type="checkbox" 
+                                       name="spamguard_auto_delete" 
+                                       value="1" 
+                                       <?php checked($auto_delete); ?> />
                                 <?php _e('Automatically block spam comments (they will not appear in spam folder)', 'spamguard'); ?>
                             </label>
                         </td>
@@ -345,7 +403,10 @@ class SpamGuard_Admin {
                         <th scope="row"><?php _e('Active Learning', 'spamguard'); ?></th>
                         <td>
                             <label>
-                                <input type="checkbox" name="spamguard_active_learning" value="1" <?php checked($active_learning); ?> />
+                                <input type="checkbox" 
+                                       name="spamguard_active_learning" 
+                                       value="1" 
+                                       <?php checked($active_learning); ?> />
                                 <?php _e('Send feedback to improve the model (recommended)', 'spamguard'); ?>
                             </label>
                         </td>
@@ -355,7 +416,10 @@ class SpamGuard_Admin {
                         <th scope="row"><?php _e('Skip Registered Users', 'spamguard'); ?></th>
                         <td>
                             <label>
-                                <input type="checkbox" name="spamguard_skip_registered" value="1" <?php checked($skip_registered); ?> />
+                                <input type="checkbox" 
+                                       name="spamguard_skip_registered" 
+                                       value="1" 
+                                       <?php checked($skip_registered); ?> />
                                 <?php _e('Don\'t check comments from logged-in users', 'spamguard'); ?>
                             </label>
                         </td>
@@ -365,7 +429,10 @@ class SpamGuard_Admin {
                         <th scope="row"><?php _e('Use Honeypot', 'spamguard'); ?></th>
                         <td>
                             <label>
-                                <input type="checkbox" name="spamguard_use_honeypot" value="1" <?php checked($use_honeypot); ?> />
+                                <input type="checkbox" 
+                                       name="spamguard_use_honeypot" 
+                                       value="1" 
+                                       <?php checked($use_honeypot); ?> />
                                 <?php _e('Add hidden field to catch bots', 'spamguard'); ?>
                             </label>
                         </td>
@@ -376,7 +443,14 @@ class SpamGuard_Admin {
                             <label for="spamguard_time_check"><?php _e('Time Check', 'spamguard'); ?></label>
                         </th>
                         <td>
-                            <input type="number" name="spamguard_time_check" id="spamguard_time_check" value="<?php echo esc_attr($time_check); ?>" min="0" max="60" step="1" class="small-text" />
+                            <input type="number" 
+                                   name="spamguard_time_check" 
+                                   id="spamguard_time_check" 
+                                   value="<?php echo esc_attr($time_check); ?>" 
+                                   min="0" 
+                                   max="60" 
+                                   step="1" 
+                                   class="small-text" />
                             <?php _e('seconds', 'spamguard'); ?>
                             <p class="description">
                                 <?php _e('Minimum time before allowing comment submission (0 to disable)', 'spamguard'); ?>
@@ -384,7 +458,9 @@ class SpamGuard_Admin {
                         </td>
                     </tr>
                     
-                    <!-- Antivirus Settings -->
+                    <!-- ======================================== -->
+                    <!-- ANTIVIRUS SETTINGS -->
+                    <!-- ======================================== -->
                     <tr>
                         <th colspan="2">
                             <h2><?php _e('Antivirus Settings', 'spamguard'); ?></h2>
@@ -395,7 +471,10 @@ class SpamGuard_Admin {
                         <th scope="row"><?php _e('Enable Antivirus', 'spamguard'); ?></th>
                         <td>
                             <label>
-                                <input type="checkbox" name="spamguard_antivirus_enabled" value="1" <?php checked($antivirus_enabled); ?> />
+                                <input type="checkbox" 
+                                       name="spamguard_antivirus_enabled" 
+                                       value="1" 
+                                       <?php checked($antivirus_enabled); ?> />
                                 <?php _e('Enable malware scanning and threat detection', 'spamguard'); ?>
                             </label>
                         </td>
@@ -407,10 +486,18 @@ class SpamGuard_Admin {
                         </th>
                         <td>
                             <select name="spamguard_auto_scan" id="spamguard_auto_scan">
-                                <option value="disabled" <?php selected($auto_scan, 'disabled'); ?>><?php _e('Disabled', 'spamguard'); ?></option>
-                                <option value="daily" <?php selected($auto_scan, 'daily'); ?>><?php _e('Daily', 'spamguard'); ?></option>
-                                <option value="weekly" <?php selected($auto_scan, 'weekly'); ?>><?php _e('Weekly (Recommended)', 'spamguard'); ?></option>
-                                <option value="monthly" <?php selected($auto_scan, 'monthly'); ?>><?php _e('Monthly', 'spamguard'); ?></option>
+                                <option value="disabled" <?php selected($auto_scan, 'disabled'); ?>>
+                                    <?php _e('Disabled', 'spamguard'); ?>
+                                </option>
+                                <option value="daily" <?php selected($auto_scan, 'daily'); ?>>
+                                    <?php _e('Daily', 'spamguard'); ?>
+                                </option>
+                                <option value="weekly" <?php selected($auto_scan, 'weekly'); ?>>
+                                    <?php _e('Weekly (Recommended)', 'spamguard'); ?>
+                                </option>
+                                <option value="monthly" <?php selected($auto_scan, 'monthly'); ?>>
+                                    <?php _e('Monthly', 'spamguard'); ?>
+                                </option>
                             </select>
                             <p class="description">
                                 <?php _e('Schedule automatic security scans', 'spamguard'); ?>
@@ -422,7 +509,10 @@ class SpamGuard_Admin {
                         <th scope="row"><?php _e('Email Notifications', 'spamguard'); ?></th>
                         <td>
                             <label>
-                                <input type="checkbox" name="spamguard_email_notifications" value="1" <?php checked($email_notifications); ?> />
+                                <input type="checkbox" 
+                                       name="spamguard_email_notifications" 
+                                       value="1" 
+                                       <?php checked($email_notifications); ?> />
                                 <?php _e('Send email alerts when threats are detected', 'spamguard'); ?>
                             </label>
                         </td>
@@ -433,14 +523,18 @@ class SpamGuard_Admin {
                             <label for="spamguard_notification_email"><?php _e('Notification Email', 'spamguard'); ?></label>
                         </th>
                         <td>
-                            <input type="email" name="spamguard_notification_email" id="spamguard_notification_email" value="<?php echo esc_attr($notification_email); ?>" class="regular-text" />
+                            <input type="email" 
+                                   name="spamguard_notification_email" 
+                                   id="spamguard_notification_email" 
+                                   value="<?php echo esc_attr($notification_email); ?>" 
+                                   class="regular-text" />
                             <p class="description">
                                 <?php _e('Email address to receive security alerts', 'spamguard'); ?>
                             </p>
                         </td>
                     </tr>
                     
-                    <?php endif; ?>
+                    <?php endif; // Fin de if (!empty($api_key)) ?>
                     
                 </table>
                 
@@ -498,21 +592,33 @@ class SpamGuard_Admin {
                 'error'
             );
         } elseif (isset($result['success']) && $result['success']) {
+            // Guardar API key
+            update_option('spamguard_api_key', $result['api_key']);
+            
             add_settings_error(
                 'spamguard_messages',
                 'generation_success',
-                __('API Key generated successfully! You can now use SpamGuard.', 'spamguard') . '<br><br><strong>' . __('Your API Key:', 'spamguard') . '</strong> <code>' . esc_html($result['api_key']) . '</code>',
+                __('API Key generated successfully! You can now use SpamGuard.', 'spamguard') . 
+                '<br><br><strong>' . __('Your API Key:', 'spamguard') . '</strong> ' . 
+                '<code>' . esc_html($result['api_key']) . '</code>',
                 'success'
             );
             
-            // Redirect para evitar resubmit
+            // Redirect para evitar resubmit del formulario
             wp_redirect(admin_url('admin.php?page=spamguard-settings&key_generated=1'));
             exit;
+        } else {
+            add_settings_error(
+                'spamguard_messages',
+                'generation_failed',
+                __('Failed to generate API key. Please try again.', 'spamguard'),
+                'error'
+            );
         }
     }
     
     /**
-     * Guardar settings
+     * Guardar configuración
      */
     private function save_settings() {
         // API Configuration
@@ -539,6 +645,7 @@ class SpamGuard_Admin {
         update_option('spamguard_email_notifications', isset($_POST['spamguard_email_notifications']));
         update_option('spamguard_notification_email', sanitize_email($_POST['spamguard_notification_email']));
         
+        // Mensaje de éxito
         add_settings_error(
             'spamguard_messages',
             'settings_updated',
