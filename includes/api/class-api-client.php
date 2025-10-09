@@ -278,15 +278,23 @@ class SpamGuard_API_Client {
     /**
      * ✅ Obtener información de cuenta
      */
-    public function get_account_info() {
-        return $this->make_request('/api/v1/account', 'GET');
+        public function get_account_info() {
+        // Retornar datos dummy por ahora
+        return array(
+            'plan' => 'free',
+            'status' => 'active',
+            'error' => false
+        );
     }
     
-    /**
-     * ✅ Obtener uso actual
-     */
     public function get_usage() {
-        return $this->make_request('/api/v1/account/usage', 'GET');
+        // Retornar datos dummy por ahora
+        return array(
+            'requests_this_month' => 0,
+            'requests_limit' => 1000,
+            'percentage' => 0,
+            'error' => false
+        );
     }
     
     /**
@@ -323,3 +331,4 @@ class SpamGuard_API_Client {
         );
     }
 }
+
