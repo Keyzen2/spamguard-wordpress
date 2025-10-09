@@ -37,15 +37,15 @@ function spamguard_load_core_classes() {
     $core_files = array(
         'includes/class-spamguard-core.php',
         'includes/class-spamguard-admin.php',
-        'includes/api/class-spamguard-api-client.php',
-        'includes/api/class-spamguard-api-cache.php',
-        'includes/api/class-spamguard-api-helper.php',
-        'includes/modules/antispam/class-spamguard-filter.php',
-        'includes/modules/antispam/class-spamguard-local-fallback.php',
-        'includes/dashboard/class-spamguard-dashboard-controller.php',
-        'includes/modules/antivirus/class-spamguard-antivirus-scanner.php',
-        'includes/modules/antivirus/class-spamguard-antivirus-dashboard.php',
-        'includes/modules/antivirus/class-spamguard-antivirus-results.php',
+        'includes/api/class-api-client.php',
+        'includes/api/class-api-cache.php',
+        'includes/api/class-api-helper.php',
+        'includes/modules/antispam/class-spam-filter.php',
+        'includes/modules/antispam/class-local-fallback.php',
+        'includes/dashboard/class-dashboard-controller.php',
+        'includes/dashboard/class-antivirus-dashboard.php',
+        'includes/modules/antivirus/class-antivirus-scanner.php',
+        'includes/modules/antivirus/class-antivirus-results.php',
     );
     
     foreach ($core_files as $file) {
@@ -457,4 +457,5 @@ function spamguard_is_configured() {
 
 // Inicializar el plugin
 spamguard();
+
 
