@@ -1,15 +1,11 @@
 <?php
-/**
- * SpamGuard Antivirus Dashboard v3.0
- * 
- * Dashboard principal del antivirus
- * 
- * @package SpamGuard
- * @version 3.0.0
- */
-
 if (!defined('ABSPATH')) {
     exit;
+}
+
+// ✅ DEBUG: Verificar que se carga
+if (defined('WP_DEBUG') && WP_DEBUG) {
+    error_log('[SpamGuard] class-antivirus-dashboard.php loaded');
 }
 
 class SpamGuard_Antivirus_Dashboard {
@@ -633,4 +629,5 @@ class SpamGuard_Antivirus_Dashboard {
         </style>
         <?php
     }
+
 }
