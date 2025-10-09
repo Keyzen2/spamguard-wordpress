@@ -258,7 +258,72 @@ class SpamGuard_Core {
             ));
         }
     }
+    /**
+     * AJAX: Registrar sitio
+     */
+    public function ajax_register_site() {
+        check_ajax_referer('spamguard_ajax', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('Permission denied', 'spamguard')));
+        }
+        
+        $email = isset($_POST['admin_email']) ? sanitize_email($_POST['admin_email']) : get_option('admin_email');
+        
+        if (!is_email($email)) {
+            wp_send_json_error(array('message' => __('Valid email required', 'spamguard')));
+            return;
+        }
+        
+        if (!class_exists('SpamGuard_API_Client')) {
+            wp_send_json_error(array('message' => __('API Client not available', 'spamguard')));
+            return;
+        }
+        
+        $api_client = SpamGuard_API_Client::get_instance();
+        $result = $api_client->register_and_generate_key($email);
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        } elseif (isset($result['success']) && $result['success']) {
+            wp_send_json_success(array(
+                'message' => $result['message'],
+                'api_key' => $result['api_key']
+            ));
+        } else {
+            wp_send_json_error(array('message' => __('Registration failed', 'spamguard')));
+        }
+    }
     
+    /**
+     * AJAX: Test de conexión
+     */
+    public function ajax_test_connection() {
+        check_ajax_referer('spamguard_ajax', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('Permission denied', 'spamguard')));
+        }
+        
+        if (!class_exists('SpamGuard_API_Client')) {
+            wp_send_json_error(array('message' => __('API Client not available', 'spamguard')));
+            return;
+        }
+        
+        $api_client = SpamGuard_API_Client::get_instance();
+        $result = $api_client->test_connection();
+        
+        if ($result['success']) {
+            wp_send_json_success(array(
+                'message' => $result['message'],
+                'result' => $result
+            ));
+        } else {
+            wp_send_json_error(array(
+                'message' => $result['message']
+            ));
+        }
+    }
     public function daily_cleanup() {
         if (class_exists('SpamGuard_API_Cache')) {
             $cache = SpamGuard_API_Cache::get_instance();
@@ -278,3 +343,4 @@ class SpamGuard_Core {
         );
     }
 }
+
