@@ -1,11 +1,7 @@
 <?php
 /**
  * SpamGuard API Client v3.0
- * 
- * Cliente para conectar con SpamGuard API v3.0 Hybrid
- * 
- * @package SpamGuard
- * @version 3.0.0
+ * Maneja todas las comunicaciones con la API
  */
 
 if (!defined('ABSPATH')) {
@@ -16,9 +12,20 @@ class SpamGuard_API_Client {
     
     private static $instance = null;
     
-    private $api_url;
+    /**
+     * URL base de la API
+     */
+    private $api_base_url;
+    
+    /**
+     * API Key
+     */
     private $api_key;
-    private $cache;
+    
+    /**
+     * Timeout (segundos)
+     */
+    private $timeout = 15;
     
     /**
      * Get singleton instance
@@ -34,94 +41,175 @@ class SpamGuard_API_Client {
      * Constructor
      */
     private function __construct() {
-        $this->api_url = get_option('spamguard_api_url', SPAMGUARD_API_URL);
-        $this->api_key = get_option('spamguard_api_key');
-        $this->cache = SpamGuard_API_Cache::get_instance();
+        $this->api_base_url = get_option('spamguard_api_url', SPAMGUARD_API_URL);
+        $this->api_key = get_option('spamguard_api_key', '');
     }
     
     /**
-     * Analizar comentario con API v3.0
-     * 
-     * @param array $comment_data Datos del comentario
-     * @return array Resultado del análisis
+     * Hacer request a la API
      */
-    public function analyze_comment($comment_data) {
-        // 1. Verificar API key
-        if (empty($this->api_key)) {
-            return $this->local_fallback($comment_data, 'no_api_key');
+    private function make_request($endpoint, $method = 'GET', $data = null, $use_api_key = true) {
+        
+        // Construir URL completa
+        $url = rtrim($this->api_base_url, '/') . $endpoint;
+        
+        // Headers
+        $headers = array(
+            'Content-Type' => 'application/json',
+            'User-Agent' => 'SpamGuard-WordPress/' . SPAMGUARD_VERSION
+        );
+        
+        // Agregar API key si se requiere
+        if ($use_api_key) {
+            if (empty($this->api_key)) {
+                return new WP_Error('no_api_key', __('API Key not configured', 'spamguard'));
+            }
+            // ⚠️ IMPORTANTE: La API v3.0 usa formato Authorization: Bearer
+            $headers['Authorization'] = 'Bearer ' . $this->api_key;
         }
         
-        // 2. Generar cache key
-        $cache_key = $this->generate_cache_key($comment_data);
+        // Argumentos de wp_remote_request
+        $args = array(
+            'method' => $method,
+            'timeout' => $this->timeout,
+            'headers' => $headers,
+            'sslverify' => true
+        );
         
-        // 3. Intentar desde caché (5 minutos)
-        $cached = $this->cache->get($cache_key);
-        if ($cached !== false) {
-            $cached['cached'] = true;
-            $cached['source'] = 'cache';
-            return $cached;
+        // Body para POST
+        if ($data && $method === 'POST') {
+            $args['body'] = json_encode($data);
         }
         
-        // 4. Preparar datos para API
-        $request_data = array(
-            'text' => $comment_data['comment_content'],
+        // Log de debug (solo si WP_DEBUG está activo)
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("SpamGuard API Request: {$method} {$url}");
+        }
+        
+        // Hacer request
+        $response = wp_remote_request($url, $args);
+        
+        // Verificar errores de conexión
+        if (is_wp_error($response)) {
+            return new WP_Error(
+                'connection_error',
+                sprintf(__('Connection error: %s', 'spamguard'), $response->get_error_message()),
+                array('url' => $url)
+            );
+        }
+        
+        // Obtener código de respuesta
+        $status_code = wp_remote_retrieve_response_code($response);
+        $body = wp_remote_retrieve_body($response);
+        $parsed = json_decode($body, true);
+        
+        // Log de debug
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("SpamGuard API Response: {$status_code} - " . substr($body, 0, 200));
+        }
+        
+        // Manejar respuestas
+        if ($status_code >= 200 && $status_code < 300) {
+            return $parsed ? $parsed : array('success' => true);
+        } else {
+            // Error de API
+            $error_message = isset($parsed['detail']) ? $parsed['detail'] : 
+                           (isset($parsed['message']) ? $parsed['message'] : 'Unknown API error');
+            
+            return new WP_Error(
+                'api_error',
+                $error_message,
+                array(
+                    'status_code' => $status_code,
+                    'response' => $parsed
+                )
+            );
+        }
+    }
+    
+    /**
+     * ============================================
+     * ENDPOINTS PÚBLICOS
+     * ============================================
+     */
+    
+    /**
+     * Health check
+     */
+    public function health_check() {
+        return $this->make_request('/health', 'GET', null, false);
+    }
+    
+    /**
+     * Registrar sitio y generar API key
+     */
+    public function register_and_generate_key($email) {
+        $data = array(
+            'email' => $email,
+            'site_url' => get_site_url(),
+            'name' => get_bloginfo('name')
+        );
+        
+        $result = $this->make_request('/api/v1/register', 'POST', $data, false);
+        
+        if (!is_wp_error($result) && isset($result['api_key'])) {
+            // Guardar API key automáticamente
+            update_option('spamguard_api_key', $result['api_key']);
+            $this->api_key = $result['api_key'];
+            
+            return array(
+                'success' => true,
+                'api_key' => $result['api_key'],
+                'user_id' => $result['user_id'],
+                'message' => $result['message']
+            );
+        }
+        
+        return $result;
+    }
+    
+    /**
+     * Analizar comentario (Anti-Spam)
+     */
+    public function analyze_comment($comment) {
+        $data = array(
+            'text' => $comment['comment_content'],
             'context' => array(
-                'email' => $comment_data['comment_author_email'],
-                'ip' => $comment_data['comment_author_IP'],
-                'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
-                'referer' => wp_get_referer()
-            ),
-            'metadata' => array(
-                'post_id' => isset($comment_data['comment_post_ID']) ? $comment_data['comment_post_ID'] : 0,
-                'user_id' => isset($comment_data['user_id']) ? $comment_data['user_id'] : 0,
-                'platform' => 'wordpress',
-                'plugin_version' => SPAMGUARD_VERSION,
-                'site_url' => get_site_url()
+                'email' => isset($comment['comment_author_email']) ? $comment['comment_author_email'] : '',
+                'ip' => isset($comment['comment_author_IP']) ? $comment['comment_author_IP'] : ''
             )
         );
         
-        // 5. Llamar a API
-        $response = $this->make_request('POST', '/analyze', $request_data, 5);
+        $result = $this->make_request('/api/v1/analyze', 'POST', $data);
         
-        // 6. Si falla, usar fallback
-        if (is_wp_error($response)) {
-            $this->log_error('API request failed: ' . $response->get_error_message());
-            return $this->local_fallback($comment_data, 'api_error');
+        // Si hay error, usar fallback local
+        if (is_wp_error($result)) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('SpamGuard: API error, using local fallback - ' . $result->get_error_message());
+            }
+            
+            // Usar análisis local como fallback
+            if (class_exists('SpamGuard_Local_Fallback')) {
+                return SpamGuard_Local_Fallback::analyze($comment);
+            }
+            
+            // Si no hay fallback, retornar como no-spam (safe fallback)
+            return array(
+                'is_spam' => false,
+                'category' => 'ham',
+                'confidence' => 0.5,
+                'risk_level' => 'low',
+                'scores' => array('ham' => 1, 'spam' => 0, 'phishing' => 0),
+                'flags' => array('api_error'),
+                'cached' => false
+            );
         }
         
-        // 7. Parsear respuesta
-        $status_code = wp_remote_retrieve_response_code($response);
-        $body = json_decode(wp_remote_retrieve_body($response), true);
-        
-        if ($status_code !== 200 || !$body || !isset($body['is_spam'])) {
-            $this->log_error('Invalid API response: ' . wp_remote_retrieve_body($response));
-            return $this->local_fallback($comment_data, 'invalid_response');
-        }
-        
-        // 8. Añadir metadata
-        $body['source'] = 'api';
-        $body['api_version'] = '3.0';
-        
-        // 9. Cachear resultado (5 minutos)
-        $this->cache->set($cache_key, $body, 300);
-        
-        // 10. Log estadísticas
-        $this->log_usage($body);
-        
-        // 11. Log en tabla local
-        $this->log_detection($comment_data, $body);
-        
-        return $body;
+        return $result;
     }
     
     /**
-     * Enviar feedback a API
-     * 
-     * @param int $comment_id ID del comentario
-     * @param string $predicted_category Categoría predicha
-     * @param string $correct_category Categoría correcta
-     * @param string $notes Notas opcionales
-     * @return bool Success
+     * Enviar feedback
      */
     public function send_feedback($comment_id, $predicted_category, $correct_category, $notes = '') {
         $comment = get_comment($comment_id);
@@ -130,330 +218,130 @@ class SpamGuard_API_Client {
             return false;
         }
         
-        $request_data = array(
+        $data = array(
             'text' => $comment->comment_content,
             'predicted_category' => $predicted_category,
             'correct_category' => $correct_category,
-            'notes' => $notes,
-            'metadata' => array(
-                'comment_id' => $comment_id,
-                'platform' => 'wordpress',
-                'site_url' => get_site_url()
-            )
+            'notes' => $notes
         );
         
-        // Enviar de forma asíncrona (no bloqueante)
-        $response = $this->make_request('POST', '/feedback', $request_data, 3, false);
+        $result = $this->make_request('/api/v1/feedback', 'POST', $data);
         
-        return !is_wp_error($response);
+        return !is_wp_error($result);
     }
     
     /**
-     * Obtener estadísticas desde API
-     * 
-     * @param int $period_days Días a analizar
-     * @return array|null Estadísticas
+     * Obtener estadísticas
      */
     public function get_stats($period_days = 30) {
-        $endpoint = '/stats?period=' . intval($period_days);
-        
-        $response = $this->make_request('GET', $endpoint);
-        
-        if (is_wp_error($response)) {
-            return null;
-        }
-        
-        $body = json_decode(wp_remote_retrieve_body($response), true);
-        
-        return $body;
+        return $this->make_request('/api/v1/stats?period=' . intval($period_days), 'GET');
     }
     
     /**
-     * Obtener información de la cuenta
-     * 
-     * @return array|null Account info
+     * Obtener información de cuenta
      */
     public function get_account_info() {
-        // Cache por 1 hora
-        $cache_key = 'spamguard_account_info';
-        $cached = get_transient($cache_key);
-        if ($cached !== false) {
-            return $cached;
-        }
-        
-        $response = $this->make_request('GET', '/account');
-        
-        if (is_wp_error($response)) {
-            return null;
-        }
-        
-        $account = json_decode(wp_remote_retrieve_body($response), true);
-        
-        // Cachear por 1 hora
-        set_transient($cache_key, $account, HOUR_IN_SECONDS);
-        
-        return $account;
+        return $this->make_request('/api/v1/account', 'GET');
     }
     
     /**
      * Obtener uso actual
-     * 
-     * @return array|null Usage info
      */
     public function get_usage() {
-        $response = $this->make_request('GET', '/account/usage');
-        
-        if (is_wp_error($response)) {
-            return null;
-        }
-        
-        return json_decode(wp_remote_retrieve_body($response), true);
+        return $this->make_request('/api/v1/account/usage', 'GET');
     }
     
     /**
-     * Verificar estado de API Key
-     * 
-     * @return bool API Key válida
+     * ============================================
+     * ANTIVIRUS ENDPOINTS
+     * ============================================
      */
-    public function verify_api_key() {
-        if (empty($this->api_key)) {
-            return false;
-        }
+    
+    /**
+     * Iniciar escaneo de malware
+     */
+    public function start_malware_scan($scan_type = 'quick', $max_size_mb = 10) {
+        $data = array(
+            'scan_type' => $scan_type,
+            'max_size_mb' => $max_size_mb
+        );
         
-        $response = $this->make_request('GET', '/account', array(), 5);
-        
-        if (is_wp_error($response)) {
-            return false;
-        }
-        
-        $status_code = wp_remote_retrieve_response_code($response);
-        
-        return $status_code === 200;
+        return $this->make_request('/api/v1/antivirus/scan/start', 'POST', $data);
     }
     
     /**
-     * Generar nueva API Key
-     * 
-     * @param string $email Email del usuario
-     * @param string $site_url URL del sitio
-     * @return array|WP_Error Array con api_key o error
+     * Obtener progreso de escaneo
      */
-    public function register_and_generate_key($email, $site_url = null) {
-        if (empty($site_url)) {
-            $site_url = get_site_url();
+    public function get_scan_progress($scan_id) {
+        return $this->make_request('/api/v1/antivirus/scan/' . $scan_id . '/progress', 'GET');
+    }
+    
+    /**
+     * Obtener resultados de escaneo
+     */
+    public function get_scan_results($scan_id) {
+        return $this->make_request('/api/v1/antivirus/scan/' . $scan_id . '/results', 'GET');
+    }
+    
+    /**
+     * Obtener escaneos recientes
+     */
+    public function get_recent_scans($limit = 10) {
+        return $this->make_request('/api/v1/antivirus/scans/recent?limit=' . intval($limit), 'GET');
+    }
+    
+    /**
+     * Obtener estadísticas de antivirus
+     */
+    public function get_antivirus_stats() {
+        return $this->make_request('/api/v1/antivirus/stats', 'GET');
+    }
+    
+    /**
+     * Poner amenaza en cuarentena
+     */
+    public function quarantine_threat($threat_id) {
+        return $this->make_request('/api/v1/antivirus/threat/' . $threat_id . '/quarantine', 'POST');
+    }
+    
+    /**
+     * Ignorar amenaza (falso positivo)
+     */
+    public function ignore_threat($threat_id) {
+        return $this->make_request('/api/v1/antivirus/threat/' . $threat_id . '/ignore', 'DELETE');
+    }
+    
+    /**
+     * ============================================
+     * HELPERS
+     * ============================================
+     */
+    
+    /**
+     * Test de conexión
+     */
+    public function test_connection() {
+        $health = $this->health_check();
+        
+        if (is_wp_error($health)) {
+            return array(
+                'success' => false,
+                'message' => $health->get_error_message()
+            );
         }
         
-        // Este endpoint NO requiere autenticación (es para registro)
-        $response = wp_remote_post($this->api_url . '/register', array(
-            'headers' => array(
-                'Content-Type' => 'application/json',
-                'User-Agent' => 'SpamGuard-WordPress/' . SPAMGUARD_VERSION
-            ),
-            'body' => json_encode(array(
-                'email' => $email,
-                'site_url' => $site_url,
-                'name' => get_bloginfo('name')
-            )),
-            'timeout' => 10
-        ));
-        
-        if (is_wp_error($response)) {
-            return $response;
-        }
-        
-        $status_code = wp_remote_retrieve_response_code($response);
-        $body = json_decode(wp_remote_retrieve_body($response), true);
-        
-        if ($status_code === 201 && isset($body['api_key'])) {
-            // Éxito - guardar API key
-            update_option('spamguard_api_key', $body['api_key']);
-            $this->api_key = $body['api_key'];
-            
+        if (isset($health['status']) && $health['status'] === 'healthy') {
             return array(
                 'success' => true,
-                'api_key' => $body['api_key'],
-                'message' => isset($body['message']) ? $body['message'] : __('API Key generated successfully', 'spamguard')
+                'message' => __('Connection successful!', 'spamguard'),
+                'version' => isset($health['version']) ? $health['version'] : 'unknown',
+                'environment' => isset($health['environment']) ? $health['environment'] : 'unknown'
             );
         }
         
-        // Error
-        $error_message = isset($body['detail']) ? $body['detail'] : __('Failed to generate API key', 'spamguard');
-        
-        // Si es array (desde FastAPI)
-        if (is_array($error_message)) {
-            $error_message = isset($error_message['message']) ? $error_message['message'] : $error_message['error'];
-        }
-        
-        return new WP_Error(
-            'registration_failed',
-            $error_message
+        return array(
+            'success' => false,
+            'message' => __('API not responding correctly', 'spamguard')
         );
-    }
-    
-    /**
-     * Hacer request a la API
-     * 
-     * @param string $method Método HTTP
-     * @param string $endpoint Endpoint
-     * @param array $data Datos (para POST/PUT)
-     * @param int $timeout Timeout en segundos
-     * @param bool $blocking Bloqueante o no
-     * @return array|WP_Error Response
-     */
-    private function make_request($method, $endpoint, $data = array(), $timeout = 10, $blocking = true) {
-        if (empty($this->api_key)) {
-            return new WP_Error('no_api_key', __('API Key not configured', 'spamguard'));
-        }
-        
-        $url = $this->api_url . $endpoint;
-        
-        $args = array(
-            'method' => $method,
-            'headers' => array(
-                'Authorization' => 'Bearer ' . $this->api_key,
-                'Content-Type' => 'application/json',
-                'User-Agent' => 'SpamGuard-WordPress/' . SPAMGUARD_VERSION
-            ),
-            'timeout' => $timeout,
-            'blocking' => $blocking,
-            'sslverify' => true
-        );
-        
-        if (!empty($data) && in_array($method, array('POST', 'PUT', 'PATCH'))) {
-            $args['body'] = json_encode($data);
-        }
-        
-        $response = wp_remote_request($url, $args);
-        
-        // Si no es bloqueante, retornar inmediatamente
-        if (!$blocking) {
-            return array('success' => true);
-        }
-        
-        // Verificar errores
-        if (is_wp_error($response)) {
-            return $response;
-        }
-        
-        $status_code = wp_remote_retrieve_response_code($response);
-        
-        // Manejar errores HTTP
-        if ($status_code >= 400) {
-            $body = json_decode(wp_remote_retrieve_body($response), true);
-            $error_message = isset($body['detail']) ? $body['detail'] : 'API Error';
-            
-            // Si es array
-            if (is_array($error_message)) {
-                $error_message = isset($error_message['message']) ? $error_message['message'] : 'API Error';
-            }
-            
-            return new WP_Error(
-                'api_error',
-                $error_message,
-                array('status' => $status_code)
-            );
-        }
-        
-        return $response;
-    }
-    
-    /**
-     * Fallback local si API no disponible
-     * 
-     * @param array $comment_data Datos del comentario
-     * @param string $reason Razón del fallback
-     * @return array Resultado del análisis local
-     */
-    private function local_fallback($comment_data, $reason = 'unknown') {
-        // Cargar fallback helper
-        if (!class_exists('SpamGuard_Local_Fallback')) {
-            require_once SPAMGUARD_PLUGIN_DIR . 'includes/modules/antispam/class-local-fallback.php';
-        }
-        
-        $fallback = SpamGuard_Local_Fallback::get_instance();
-        $result = $fallback->analyze($comment_data);
-        
-        // Añadir metadata
-        $result['source'] = 'local_fallback';
-        $result['fallback_reason'] = $reason;
-        $result['cached'] = false;
-        
-        // Log
-        $this->log_detection($comment_data, $result);
-        
-        return $result;
-    }
-    
-    /**
-     * Generar cache key único
-     * 
-     * @param array $comment_data Datos del comentario
-     * @return string Cache key
-     */
-    private function generate_cache_key($comment_data) {
-        $data = array(
-            'content' => isset($comment_data['comment_content']) ? substr($comment_data['comment_content'], 0, 500) : '',
-            'email' => isset($comment_data['comment_author_email']) ? $comment_data['comment_author_email'] : '',
-            'ip' => isset($comment_data['comment_author_IP']) ? $comment_data['comment_author_IP'] : ''
-        );
-        
-        return 'spamguard_analyze_' . md5(json_encode($data));
-    }
-    
-    /**
-     * Log de uso (para estadísticas locales)
-     * 
-     * @param array $result Resultado del análisis
-     */
-    private function log_usage($result) {
-        global $wpdb;
-        
-        $table = $wpdb->prefix . 'spamguard_usage';
-        
-        $wpdb->insert($table, array(
-            'category' => isset($result['category']) ? $result['category'] : 'unknown',
-            'confidence' => isset($result['confidence']) ? $result['confidence'] : 0,
-            'risk_level' => isset($result['risk_level']) ? $result['risk_level'] : 'low',
-            'processing_time_ms' => isset($result['processing_time_ms']) ? $result['processing_time_ms'] : 0,
-            'cached' => isset($result['cached']) ? intval($result['cached']) : 0,
-            'created_at' => current_time('mysql')
-        ));
-    }
-    
-    /**
-     * Log detección en tabla local
-     * 
-     * @param array $comment_data Datos del comentario
-     * @param array $result Resultado
-     */
-    private function log_detection($comment_data, $result) {
-        global $wpdb;
-        
-        $table = $wpdb->prefix . 'spamguard_logs';
-        
-        $wpdb->insert($table, array(
-            'comment_id' => isset($comment_data['comment_ID']) ? $comment_data['comment_ID'] : null,
-            'comment_author' => isset($comment_data['comment_author']) ? $comment_data['comment_author'] : '',
-            'comment_author_email' => isset($comment_data['comment_author_email']) ? $comment_data['comment_author_email'] : '',
-            'comment_content' => isset($comment_data['comment_content']) ? substr($comment_data['comment_content'], 0, 1000) : '',
-            'is_spam' => isset($result['is_spam']) ? intval($result['is_spam']) : 0,
-            'category' => isset($result['category']) ? $result['category'] : 'ham',
-            'confidence' => isset($result['confidence']) ? $result['confidence'] : null,
-            'risk_level' => isset($result['risk_level']) ? $result['risk_level'] : 'low',
-            'flags' => isset($result['flags']) ? json_encode($result['flags']) : null,
-            'request_id' => isset($result['request_id']) ? $result['request_id'] : null,
-            'created_at' => current_time('mysql')
-        ));
-    }
-    
-    /**
-     * Log de errores
-     * 
-     * @param string $message Mensaje de error
-     */
-    private function log_error($message) {
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('[SpamGuard API v3.0] ' . $message);
-        }
     }
 }
