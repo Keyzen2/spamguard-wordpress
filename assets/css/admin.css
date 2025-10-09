@@ -1,0 +1,660 @@
+/**
+ * SpamGuard Admin Styles v3.0
+ * 
+ * @package SpamGuard
+ * @version 3.0.0
+ */
+
+/* ============================================
+   GLOBAL STYLES
+   ============================================ */
+
+.spamguard-dashboard,
+.spamguard-antivirus-dashboard,
+.spamguard-settings {
+    max-width: 1400px;
+}
+
+.spamguard-dashboard h1,
+.spamguard-antivirus-dashboard h1,
+.spamguard-settings h1 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.spamguard-dashboard .dashicons,
+.spamguard-antivirus-dashboard .dashicons,
+.spamguard-settings .dashicons {
+    vertical-align: middle;
+}
+
+/* ============================================
+   STATS GRID
+   ============================================ */
+
+.spamguard-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin: 30px 0;
+}
+
+.spamguard-stat-card {
+    background: #fff;
+    padding: 20px;
+    border-left: 4px solid #2271b1;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.spamguard-stat-card:hover {
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+.spamguard-stat-card h3 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.spamguard-stat-card .stat-number {
+    font-size: 32px;
+    font-weight: bold;
+    line-height: 1;
+    margin-bottom: 5px;
+}
+
+.spamguard-stat-card .stat-label {
+    color: #666;
+    font-size: 14px;
+}
+
+/* Color variations */
+.spamguard-stat-card.stat-primary {
+    border-left-color: #2271b1;
+}
+
+.spamguard-stat-card.stat-primary .stat-number {
+    color: #2271b1;
+}
+
+.spamguard-stat-card.stat-danger {
+    border-left-color: #d63638;
+}
+
+.spamguard-stat-card.stat-danger .stat-number {
+    color: #d63638;
+}
+
+.spamguard-stat-card.stat-success {
+    border-left-color: #00a32a;
+}
+
+.spamguard-stat-card.stat-success .stat-number {
+    color: #00a32a;
+}
+
+.spamguard-stat-card.stat-warning {
+    border-left-color: #dba617;
+}
+
+.spamguard-stat-card.stat-warning .stat-number {
+    color: #dba617;
+}
+
+/* ============================================
+   CARDS
+   ============================================ */
+
+.spamguard-card {
+    background: #fff;
+    padding: 20px;
+    margin: 20px 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+}
+
+.spamguard-card h2 {
+    margin-top: 0;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #ddd;
+}
+
+.spamguard-card h2 .dashicons {
+    color: #2271b1;
+}
+
+/* ============================================
+   USAGE CARD
+   ============================================ */
+
+.spamguard-usage-card {
+    background: #fff;
+    padding: 20px;
+    margin: 20px 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+}
+
+.spamguard-usage-card h2 {
+    margin-top: 0;
+}
+
+.spamguard-usage-progress {
+    background: #f0f0f1;
+    height: 20px;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 10px 0;
+}
+
+.spamguard-usage-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #2271b1, #72aee6);
+    transition: width 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.spamguard-usage-progress-fill.warning {
+    background: linear-gradient(90deg, #dba617, #f0c36d);
+}
+
+.spamguard-usage-progress-fill.danger {
+    background: linear-gradient(90deg, #d63638, #f86368);
+}
+
+/* ============================================
+   SCAN OPTIONS
+   ============================================ */
+
+.spamguard-scan-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.scan-option {
+    border: 2px solid #ddd;
+    padding: 20px;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+    background: #fff;
+}
+
+.scan-option:hover {
+    border-color: #2271b1;
+    box-shadow: 0 2px 8px rgba(34, 113, 177, 0.2);
+    transform: translateY(-2px);
+}
+
+.scan-option h3 {
+    margin-top: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.scan-option p {
+    color: #666;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.scan-option .scan-duration {
+    color: #999;
+    font-size: 12px;
+    font-style: italic;
+}
+
+/* ============================================
+   SCAN PROGRESS
+   ============================================ */
+
+#spamguard-scan-progress {
+    background: #fff;
+    padding: 20px;
+    margin: 20px 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+    border-left: 4px solid #2271b1;
+}
+
+#scan-progress-bar {
+    background: #f0f0f1;
+    height: 30px;
+    border-radius: 15px;
+    overflow: hidden;
+    position: relative;
+    margin: 20px 0;
+}
+
+#scan-progress-fill {
+    background: linear-gradient(90deg, #2271b1, #72aee6);
+    height: 100%;
+    width: 0%;
+    transition: width 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.scan-progress-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    text-align: center;
+    margin: 20px 0;
+}
+
+.scan-progress-stats > div {
+    padding: 10px;
+    border-radius: 4px;
+    background: #f9f9f9;
+}
+
+.scan-progress-stats .stat-value {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.scan-progress-stats .stat-label {
+    color: #666;
+    font-size: 12px;
+}
+
+/* ============================================
+   THREATS LIST
+   ============================================ */
+
+.spamguard-threats-list {
+    background: #fff;
+    padding: 20px;
+    margin: 20px 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+}
+
+.spamguard-threats-list h2 {
+    color: #d63638;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.threat-severity-badge {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 3px;
+    color: white;
+    font-weight: bold;
+    font-size: 11px;
+    text-transform: uppercase;
+}
+
+.threat-severity-badge.critical {
+    background: #d63638;
+}
+
+.threat-severity-badge.high {
+    background: #f56e28;
+}
+
+.threat-severity-badge.medium {
+    background: #dba617;
+}
+
+.threat-severity-badge.low {
+    background: #00a32a;
+}
+
+.threat-file-path {
+    font-family: monospace;
+    font-size: 12px;
+    background: #f0f0f1;
+    padding: 2px 6px;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+.threat-code-snippet {
+    background: #f0f0f1;
+    padding: 10px;
+    margin-top: 5px;
+    font-size: 11px;
+    overflow-x: auto;
+    border-radius: 3px;
+    font-family: monospace;
+}
+
+details summary {
+    cursor: pointer;
+    color: #2271b1;
+    user-select: none;
+}
+
+details summary:hover {
+    text-decoration: underline;
+}
+
+details[open] summary {
+    margin-bottom: 10px;
+}
+
+/* ============================================
+   NO THREATS SCREEN
+   ============================================ */
+
+.spamguard-no-threats {
+    background: #fff;
+    padding: 60px 40px;
+    margin: 20px 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    border-radius: 4px;
+}
+
+.spamguard-no-threats .success-icon {
+    font-size: 80px;
+    color: #00a32a;
+    margin-bottom: 20px;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+.spamguard-no-threats h2 {
+    color: #00a32a;
+    margin: 0 0 10px 0;
+}
+
+.spamguard-no-threats p {
+    color: #666;
+    font-size: 16px;
+}
+
+/* ============================================
+   RECENT ACTIVITY
+   ============================================ */
+
+.spamguard-recent-activity {
+    background: #fff;
+    padding: 20px;
+    margin: 20px 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+}
+
+.spamguard-recent-activity h2 {
+    margin-top: 0;
+}
+
+.spamguard-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+.spamguard-badge-spam {
+    background: #d63638;
+    color: white;
+}
+
+.spamguard-badge-ham {
+    background: #00a32a;
+    color: white;
+}
+
+.spamguard-badge-phishing {
+    background: #dba617;
+    color: white;
+}
+
+/* ============================================
+   TABLES
+   ============================================ */
+
+.wp-list-table th,
+.wp-list-table td {
+    vertical-align: middle;
+}
+
+.wp-list-table small {
+    color: #666;
+    display: block;
+    margin-top: 3px;
+}
+
+.wp-list-table code {
+    background: #f0f0f1;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+/* ============================================
+   BUTTONS
+   ============================================ */
+
+.button-hero {
+    font-size: 16px !important;
+    padding: 10px 20px !important;
+    height: auto !important;
+}
+
+.button .dashicons {
+    margin-right: 5px;
+    vertical-align: middle;
+}
+
+.button-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* ============================================
+   QUICK ACTIONS
+   ============================================ */
+
+.spamguard-quick-actions {
+    background: #fff;
+    padding: 20px;
+    margin: 20px 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+}
+
+.spamguard-quick-actions h2 {
+    margin-top: 0;
+}
+
+.quick-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.quick-actions-grid .button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px;
+}
+
+/* ============================================
+   NOTICES
+   ============================================ */
+
+.notice.inline {
+    margin: 15px 0;
+}
+
+.notice h3 {
+    margin-top: 0;
+}
+
+/* ============================================
+   SETTINGS PAGE
+   ============================================ */
+
+.spamguard-settings .form-table th {
+    width: 250px;
+}
+
+.spamguard-settings input[type="range"] {
+    width: 300px;
+    vertical-align: middle;
+}
+
+.spamguard-settings #sensitivity_value {
+    display: inline-block;
+    min-width: 50px;
+    text-align: center;
+    font-weight: bold;
+    color: #2271b1;
+}
+
+/* API Key Generation Box */
+.api-key-generation-box {
+    background: #f0f6fc;
+    border: 1px solid #0c5c99;
+    padding: 20px;
+    border-radius: 4px;
+}
+
+.api-key-generation-box h3 {
+    margin-top: 0;
+    color: #0c5c99;
+}
+
+/* ============================================
+   LOADING STATES
+   ============================================ */
+
+.spamguard-loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #2271b1;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media screen and (max-width: 782px) {
+    .spamguard-stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .spamguard-scan-options {
+        grid-template-columns: 1fr;
+    }
+    
+    .scan-progress-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .quick-actions-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ============================================
+   UTILITIES
+   ============================================ */
+
+.text-center {
+    text-align: center;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.mt-0 { margin-top: 0 !important; }
+.mt-10 { margin-top: 10px !important; }
+.mt-20 { margin-top: 20px !important; }
+
+.mb-0 { margin-bottom: 0 !important; }
+.mb-10 { margin-bottom: 10px !important; }
+.mb-20 { margin-bottom: 20px !important; }
+
+.color-success { color: #00a32a; }
+.color-danger { color: #d63638; }
+.color-warning { color: #dba617; }
+.color-primary { color: #2271b1; }
+
+.font-weight-bold { font-weight: bold; }
+
+/* ============================================
+   DARK MODE SUPPORT (Optional)
+   ============================================ */
+
+@media (prefers-color-scheme: dark) {
+    .spamguard-stat-card,
+    .spamguard-card,
+    .spamguard-usage-card,
+    .scan-option {
+        background: #1e1e1e;
+        color: #e0e0e0;
+    }
+    
+    .spamguard-stat-card .stat-label,
+    .scan-option p {
+        color: #b0b0b0;
+    }
+}
+
+/* ============================================
+   PRINT STYLES
+   ============================================ */
+
+@media print {
+    .spamguard-dashboard .button,
+    .spamguard-antivirus-dashboard .button,
+    #spamguard-scan-progress {
+        display: none;
+    }
+    
+    .spamguard-stat-card,
+    .spamguard-card {
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
+}

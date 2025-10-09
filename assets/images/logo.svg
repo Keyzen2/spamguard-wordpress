@@ -1,0 +1,16 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Shield background -->
+  <path d="M128 16L32 64V112C32 176 80 224 128 240C176 224 224 176 224 112V64L128 16Z" fill="#667eea"/>
+  
+  <!-- AI Circuit pattern -->
+  <circle cx="128" cy="100" r="8" fill="white" opacity="0.8"/>
+  <circle cx="100" cy="120" r="6" fill="white" opacity="0.6"/>
+  <circle cx="156" cy="120" r="6" fill="white" opacity="0.6"/>
+  <circle cx="128" cy="140" r="8" fill="white" opacity="0.8"/>
+  
+  <!-- Connecting lines -->
+  <path d="M128 100 L100 120 L128 140 L156 120 Z" stroke="white" stroke-width="2" fill="none" opacity="0.6"/>
+  
+  <!-- Checkmark -->
+  <path d="M100 160 L120 180 L160 140" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

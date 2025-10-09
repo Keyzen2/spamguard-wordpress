@@ -1,0 +1,822 @@
+# Spanish translations for SpamGuard WordPress Plugin
+# Copyright (C) 2025 SpamGuard Team
+# This file is distributed under the same license as the SpamGuard package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: SpamGuard Security Suite 2.0.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/spamguard\n"
+"POT-Creation-Date: 2025-01-07 10:00+0000\n"
+"PO-Revision-Date: 2025-01-07 12:00+0000\n"
+"Last-Translator: SpamGuard Team <team@spamguard.ai>\n"
+"Language-Team: Spanish\n"
+"Language: es_ES\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: Poedit 3.0\n"
+"X-Domain: spamguard\n"
+
+# ============================================
+# PLUGIN METADATA
+# ============================================
+msgid "SpamGuard Security Suite"
+msgstr "Suite de Seguridad SpamGuard"
+
+msgid "Complete security suite with ML-powered Anti-Spam, Antivirus, Firewall and Monitoring"
+msgstr "Suite completa de seguridad con Anti-Spam potenciado por ML, Antivirus, Firewall y Monitoreo"
+
+msgid "SpamGuard Team"
+msgstr "Equipo SpamGuard"
+
+# ============================================
+# MENU ITEMS
+# ============================================
+msgid "SpamGuard"
+msgstr "SpamGuard"
+
+msgid "Dashboard"
+msgstr "Panel"
+
+msgid "Anti-Spam"
+msgstr "Anti-Spam"
+
+msgid "Antivirus"
+msgstr "Antivirus"
+
+msgid "Firewall"
+msgstr "Firewall"
+
+msgid "Monitoring"
+msgstr "Monitoreo"
+
+msgid "Settings"
+msgstr "Configuración"
+
+msgid "Logs"
+msgstr "Registros"
+
+# ============================================
+# UNIFIED DASHBOARD
+# ============================================
+msgid "Unified Security Dashboard"
+msgstr "Panel de Seguridad Unificado"
+
+msgid "Security Score"
+msgstr "Puntuación de Seguridad"
+
+msgid "Excellent"
+msgstr "Excelente"
+
+msgid "Good"
+msgstr "Bueno"
+
+msgid "Acceptable"
+msgstr "Aceptable"
+
+msgid "Needs Improvement"
+msgstr "Necesita Mejora"
+
+msgid "Critical"
+msgstr "Crítico"
+
+msgid "Your site is well protected. Excellent work!"
+msgstr "Tu sitio está bien protegido. ¡Excelente trabajo!"
+
+msgid "Acceptable security. Review the recommendations."
+msgstr "Seguridad aceptable. Revisa las recomendaciones."
+
+msgid "Attention required. Fix security issues."
+msgstr "Atención requerida. Corrige los problemas de seguridad."
+
+msgid "View factors"
+msgstr "Ver factores"
+
+msgid "Security Modules"
+msgstr "Módulos de Seguridad"
+
+msgid "Active"
+msgstr "Activo"
+
+msgid "Inactive"
+msgstr "Inactivo"
+
+msgid "Coming Soon"
+msgstr "Próximamente"
+
+msgid "View details"
+msgstr "Ver detalles"
+
+msgid "Threat Summary"
+msgstr "Resumen de Amenazas"
+
+msgid "View all threats"
+msgstr "Ver todas las amenazas"
+
+msgid "Recent Activity"
+msgstr "Actividad Reciente"
+
+msgid "Live"
+msgstr "En vivo"
+
+msgid "No recent activity"
+msgstr "No hay actividad reciente"
+
+msgid "Quick Actions"
+msgstr "Acciones Rápidas"
+
+msgid "Scan now"
+msgstr "Escanear ahora"
+
+msgid "View spam"
+msgstr "Ver spam"
+
+msgid "Configuration"
+msgstr "Configuración"
+
+msgid "View logs"
+msgstr "Ver registros"
+
+msgid "Refresh"
+msgstr "Actualizar"
+
+# ============================================
+# QUICK STATS
+# ============================================
+msgid "Spam blocked today"
+msgstr "Spam bloqueado hoy"
+
+msgid "Active threats"
+msgstr "Amenazas activas"
+
+msgid "Total scans"
+msgstr "Escaneos totales"
+
+msgid "Days protecting"
+msgstr "Días protegiendo"
+
+# ============================================
+# ANTIVIRUS PAGE
+# ============================================
+msgid "Antivirus Scanner"
+msgstr "Escáner Antivirus"
+
+msgid "Configuration needed!"
+msgstr "¡Configuración necesaria!"
+
+msgid "To use the antivirus, configure your API Key first."
+msgstr "Para usar el antivirus, configura tu Clave API primero."
+
+msgid "Configure Now"
+msgstr "Configurar Ahora"
+
+msgid "Security Status"
+msgstr "Estado de Seguridad"
+
+msgid "Secure"
+msgstr "Seguro"
+
+msgid "Warning"
+msgstr "Advertencia"
+
+msgid "Danger"
+msgstr "Peligro"
+
+msgid "Your site is protected. No critical threats detected."
+msgstr "Tu sitio está protegido. No se detectaron amenazas críticas."
+
+msgid "Some threats detected. Review and take action."
+msgstr "Algunas amenazas detectadas. Revisa y toma acción."
+
+msgid "Attention! Critical threats detected. Immediate action required."
+msgstr "¡Atención! Amenazas críticas detectadas. Acción inmediata requerida."
+
+msgid "Scan Files"
+msgstr "Escanear Archivos"
+
+msgid "Quick Scan"
+msgstr "Escaneo Rápido"
+
+msgid "Scans plugins and themes (5-10 minutes)"
+msgstr "Escanea plugins y temas (5-10 minutos)"
+
+msgid "Full Scan"
+msgstr "Escaneo Completo"
+
+msgid "Scans all WordPress (15-30 minutes)"
+msgstr "Escanea todo WordPress (15-30 minutos)"
+
+msgid "Scanning..."
+msgstr "Escaneando..."
+
+msgid "Initializing scan..."
+msgstr "Inicializando escaneo..."
+
+msgid "Files:"
+msgstr "Archivos:"
+
+msgid "Threats:"
+msgstr "Amenazas:"
+
+msgid "Last Scan"
+msgstr "Último Escaneo"
+
+msgid "files scanned"
+msgstr "archivos escaneados"
+
+msgid "threats found"
+msgstr "amenazas encontradas"
+
+msgid "No threats"
+msgstr "Sin amenazas"
+
+msgid "Statistics"
+msgstr "Estadísticas"
+
+msgid "Total Scans"
+msgstr "Escaneos Totales"
+
+msgid "By Severity"
+msgstr "Por Severidad"
+
+msgid "Critical"
+msgstr "Crítico"
+
+msgid "High"
+msgstr "Alto"
+
+msgid "Medium"
+msgstr "Medio"
+
+msgid "Low"
+msgstr "Bajo"
+
+msgid "Detected Threats"
+msgstr "Amenazas Detectadas"
+
+msgid "No active threats detected"
+msgstr "No se detectaron amenazas activas"
+
+msgid "Your site is clean and secure"
+msgstr "Tu sitio está limpio y seguro"
+
+msgid "Signature:"
+msgstr "Firma:"
+
+msgid "Quarantine"
+msgstr "Cuarentena"
+
+msgid "Ignore"
+msgstr "Ignorar"
+
+# ============================================
+# SETTINGS PAGE
+# ============================================
+msgid "SpamGuard Settings"
+msgstr "Configuración de SpamGuard"
+
+msgid "API Configuration"
+msgstr "Configuración de API"
+
+msgid "API URL"
+msgstr "URL de la API"
+
+msgid "Backend API endpoint URL"
+msgstr "URL del endpoint de la API backend"
+
+msgid "API Key"
+msgstr "Clave API"
+
+msgid "Your unique API key for authentication"
+msgstr "Tu clave API única para autenticación"
+
+msgid "Generate API Key Automatically"
+msgstr "Generar Clave API Automáticamente"
+
+msgid "Test Connection"
+msgstr "Probar Conexión"
+
+msgid "Connection successful"
+msgstr "Conexión exitosa"
+
+msgid "Connection failed"
+msgstr "Conexión fallida"
+
+msgid "Anti-Spam Settings"
+msgstr "Configuración Anti-Spam"
+
+msgid "Sensitivity"
+msgstr "Sensibilidad"
+
+msgid "Higher values = more aggressive spam detection"
+msgstr "Valores más altos = detección de spam más agresiva"
+
+msgid "Auto-delete spam"
+msgstr "Auto-eliminar spam"
+
+msgid "Automatically delete spam comments"
+msgstr "Eliminar automáticamente comentarios spam"
+
+msgid "Active Learning"
+msgstr "Aprendizaje Activo"
+
+msgid "Improve model with your feedback"
+msgstr "Mejorar modelo con tu retroalimentación"
+
+msgid "Skip registered users"
+msgstr "Omitir usuarios registrados"
+
+msgid "Don't check comments from logged-in users"
+msgstr "No verificar comentarios de usuarios conectados"
+
+msgid "Use Honeypot"
+msgstr "Usar Honeypot"
+
+msgid "Hidden field to catch bots"
+msgstr "Campo oculto para atrapar bots"
+
+msgid "Time Check"
+msgstr "Verificación de Tiempo"
+
+msgid "Minimum seconds before allowing comment submission"
+msgstr "Segundos mínimos antes de permitir envío de comentario"
+
+msgid "Antivirus Settings"
+msgstr "Configuración de Antivirus"
+
+msgid "Automatic Scan"
+msgstr "Escaneo Automático"
+
+msgid "Schedule automatic scans"
+msgstr "Programar escaneos automáticos"
+
+msgid "Never"
+msgstr "Nunca"
+
+msgid "Daily"
+msgstr "Diario"
+
+msgid "Weekly"
+msgstr "Semanal"
+
+msgid "Monthly"
+msgstr "Mensual"
+
+msgid "Email Notifications"
+msgstr "Notificaciones por Correo"
+
+msgid "Receive email alerts for threats"
+msgstr "Recibir alertas por correo para amenazas"
+
+msgid "Notification Email"
+msgstr "Correo de Notificación"
+
+msgid "Email address for security alerts"
+msgstr "Dirección de correo para alertas de seguridad"
+
+msgid "Firewall Settings"
+msgstr "Configuración de Firewall"
+
+msgid "Enable Firewall"
+msgstr "Habilitar Firewall"
+
+msgid "Web Application Firewall protection"
+msgstr "Protección de Firewall de Aplicación Web"
+
+msgid "Block known malicious IPs"
+msgstr "Bloquear IPs maliciosas conocidas"
+
+msgid "Rate Limiting"
+msgstr "Limitación de Velocidad"
+
+msgid "Limit requests per IP"
+msgstr "Limitar solicitudes por IP"
+
+msgid "Max requests per minute"
+msgstr "Máximo de solicitudes por minuto"
+
+msgid "Monitoring Settings"
+msgstr "Configuración de Monitoreo"
+
+msgid "File Integrity Monitor"
+msgstr "Monitor de Integridad de Archivos"
+
+msgid "Monitor file changes"
+msgstr "Monitorear cambios de archivos"
+
+msgid "Create Baseline"
+msgstr "Crear Línea Base"
+
+msgid "Advanced Settings"
+msgstr "Configuración Avanzada"
+
+msgid "Debug Mode"
+msgstr "Modo de Depuración"
+
+msgid "Enable detailed logging"
+msgstr "Habilitar registro detallado"
+
+msgid "Log Level"
+msgstr "Nivel de Registro"
+
+msgid "Cache Duration"
+msgstr "Duración de Caché"
+
+msgid "Hours to cache API responses"
+msgstr "Horas para cachear respuestas de API"
+
+msgid "Save Changes"
+msgstr "Guardar Cambios"
+
+msgid "Settings saved successfully"
+msgstr "Configuración guardada exitosamente"
+
+msgid "Error saving settings"
+msgstr "Error al guardar configuración"
+
+# ============================================
+# LOGS PAGE
+# ============================================
+msgid "Activity Logs"
+msgstr "Registros de Actividad"
+
+msgid "Filter by type"
+msgstr "Filtrar por tipo"
+
+msgid "All"
+msgstr "Todos"
+
+msgid "Spam Blocked"
+msgstr "Spam Bloqueado"
+
+msgid "Comments Approved"
+msgstr "Comentarios Aprobados"
+
+msgid "Threats Detected"
+msgstr "Amenazas Detectadas"
+
+msgid "Scans Completed"
+msgstr "Escaneos Completados"
+
+msgid "Filter by date"
+msgstr "Filtrar por fecha"
+
+msgid "Last 7 days"
+msgstr "Últimos 7 días"
+
+msgid "Last 30 days"
+msgstr "Últimos 30 días"
+
+msgid "Last 90 days"
+msgstr "Últimos 90 días"
+
+msgid "Custom range"
+msgstr "Rango personalizado"
+
+msgid "Export"
+msgstr "Exportar"
+
+msgid "Clear logs"
+msgstr "Limpiar registros"
+
+msgid "Are you sure?"
+msgstr "¿Estás seguro?"
+
+msgid "Date"
+msgstr "Fecha"
+
+msgid "Type"
+msgstr "Tipo"
+
+msgid "Description"
+msgstr "Descripción"
+
+msgid "Details"
+msgstr "Detalles"
+
+msgid "No logs found"
+msgstr "No se encontraron registros"
+
+msgid "Confidence"
+msgstr "Confianza"
+
+msgid "Author"
+msgstr "Autor"
+
+msgid "Email"
+msgstr "Correo electrónico"
+
+msgid "IP Address"
+msgstr "Dirección IP"
+
+msgid "Content"
+msgstr "Contenido"
+
+msgid "Reasons"
+msgstr "Razones"
+
+# ============================================
+# COMMENT ACTIONS
+# ============================================
+msgid "Block Email"
+msgstr "Bloquear Correo"
+
+msgid "Trust Email"
+msgstr "Confiar Correo"
+
+msgid "Mark as Spam"
+msgstr "Marcar como Spam"
+
+msgid "Mark as Not Spam"
+msgstr "Marcar como No Spam"
+
+msgid "Add to Blacklist"
+msgstr "Añadir a Lista Negra"
+
+msgid "Add to Whitelist"
+msgstr "Añadir a Lista Blanca"
+
+msgid "Send Feedback"
+msgstr "Enviar Retroalimentación"
+
+# ============================================
+# NOTIFICATIONS
+# ============================================
+msgid "Operation completed"
+msgstr "Operación completada"
+
+msgid "An error occurred"
+msgstr "Ocurrió un error"
+
+msgid "Scan started"
+msgstr "Escaneo iniciado"
+
+msgid "Threat quarantined"
+msgstr "Amenaza en cuarentena"
+
+msgid "Threat ignored"
+msgstr "Amenaza ignorada"
+
+msgid "Email blocked"
+msgstr "Correo bloqueado"
+
+msgid "Email whitelisted"
+msgstr "Correo en lista blanca"
+
+msgid "Feedback sent"
+msgstr "Retroalimentación enviada"
+
+msgid "Settings updated"
+msgstr "Configuración actualizada"
+
+msgid "Baseline created"
+msgstr "Línea base creada"
+
+msgid "Processing..."
+msgstr "Procesando..."
+
+# ============================================
+# WIDGET (Dashboard)
+# ============================================
+msgid "SpamGuard Security"
+msgstr "Seguridad SpamGuard"
+
+msgid "Spam today"
+msgstr "Spam hoy"
+
+msgid "Threats"
+msgstr "Amenazas"
+
+msgid "View Complete Dashboard"
+msgstr "Ver Panel Completo"
+
+# ============================================
+# ADMIN BAR
+# ============================================
+msgid "Security Score:"
+msgstr "Puntuación de Seguridad:"
+
+# ============================================
+# ERRORS
+# ============================================
+msgid "You don't have permissions"
+msgstr "No tienes permisos"
+
+msgid "Invalid request"
+msgstr "Solicitud inválida"
+
+msgid "Database error"
+msgstr "Error de base de datos"
+
+msgid "API connection error"
+msgstr "Error de conexión a API"
+
+msgid "File not found"
+msgstr "Archivo no encontrado"
+
+msgid "Cannot read file"
+msgstr "No se puede leer el archivo"
+
+msgid "Cannot write to file"
+msgstr "No se puede escribir en el archivo"
+
+msgid "Invalid API response"
+msgstr "Respuesta de API inválida"
+
+msgid "Rate limit exceeded"
+msgstr "Límite de velocidad excedido"
+
+msgid "Service unavailable"
+msgstr "Servicio no disponible"
+
+# ============================================
+# HELP TEXT
+# ============================================
+msgid "Need help?"
+msgstr "¿Necesitas ayuda?"
+
+msgid "Documentation"
+msgstr "Documentación"
+
+msgid "Support"
+msgstr "Soporte"
+
+msgid "Contact us"
+msgstr "Contáctanos"
+
+msgid "Report a bug"
+msgstr "Reportar un error"
+
+msgid "Feature request"
+msgstr "Solicitar función"
+
+# ============================================
+# TIME EXPRESSIONS
+# ============================================
+msgid "Just now"
+msgstr "Justo ahora"
+
+msgid "ago"
+msgstr "hace"
+
+msgid "second"
+msgid_plural "seconds"
+msgstr[0] "segundo"
+msgstr[1] "segundos"
+
+msgid "minute"
+msgid_plural "minutes"
+msgstr[0] "minuto"
+msgstr[1] "minutos"
+
+msgid "hour"
+msgid_plural "hours"
+msgstr[0] "hora"
+msgstr[1] "horas"
+
+msgid "day"
+msgid_plural "days"
+msgstr[0] "día"
+msgstr[1] "días"
+
+msgid "week"
+msgid_plural "weeks"
+msgstr[0] "semana"
+msgstr[1] "semanas"
+
+msgid "month"
+msgid_plural "months"
+msgstr[0] "mes"
+msgstr[1] "meses"
+
+msgid "year"
+msgid_plural "years"
+msgstr[0] "año"
+msgstr[1] "años"
+
+# ============================================
+# SEVERITY LEVELS
+# ============================================
+msgid "Info"
+msgstr "Información"
+
+msgid "Success"
+msgstr "Éxito"
+
+msgid "Warning"
+msgstr "Advertencia"
+
+msgid "Error"
+msgstr "Error"
+
+# ============================================
+# BUTTONS
+# ============================================
+msgid "Cancel"
+msgstr "Cancelar"
+
+msgid "Confirm"
+msgstr "Confirmar"
+
+msgid "Delete"
+msgstr "Eliminar"
+
+msgid "Edit"
+msgstr "Editar"
+
+msgid "Save"
+msgstr "Guardar"
+
+msgid "Close"
+msgstr "Cerrar"
+
+msgid "Back"
+msgstr "Volver"
+
+msgid "Next"
+msgstr "Siguiente"
+
+msgid "Previous"
+msgstr "Anterior"
+
+msgid "Apply"
+msgstr "Aplicar"
+
+msgid "Reset"
+msgstr "Restablecer"
+
+msgid "Clear"
+msgstr "Limpiar"
+
+msgid "Search"
+msgstr "Buscar"
+
+msgid "Filter"
+msgstr "Filtrar"
+
+msgid "Sort"
+msgstr "Ordenar"
+
+msgid "Download"
+msgstr "Descargar"
+
+msgid "Upload"
+msgstr "Subir"
+
+msgid "Import"
+msgstr "Importar"
+
+msgid "Export"
+msgstr "Exportar"
+
+# ============================================
+# MISC
+# ============================================
+msgid "Yes"
+msgstr "Sí"
+
+msgid "No"
+msgstr "No"
+
+msgid "Enabled"
+msgstr "Habilitado"
+
+msgid "Disabled"
+msgstr "Deshabilitado"
+
+msgid "On"
+msgstr "Activado"
+
+msgid "Off"
+msgstr "Desactivado"
+
+msgid "Default"
+msgstr "Predeterminado"
+
+msgid "Custom"
+msgstr "Personalizado"
+
+msgid "None"
+msgstr "Ninguno"
+
+msgid "Unknown"
+msgstr "Desconocido"
+
+msgid "N/A"
+msgstr "N/D"
+
+msgid "Loading..."
+msgstr "Cargando..."
+
+msgid "Please wait..."
+msgstr "Por favor espera..."
+
+msgid "Version"
+msgstr "Versión"
+
+msgid "Status"
+msgstr "Estado"
+
+msgid "Actions"
+msgstr "Acciones"
