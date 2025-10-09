@@ -1,6 +1,10 @@
 <?php
 /**
- * Clase para manejar comunicación con la API de SpamGuard
+ * SpamGuard API Client
+ * Cliente para comunicación con SpamGuard API v3.0
+ * 
+ * @package SpamGuard
+ * @version 3.0.0
  */
 
 if (!defined('ABSPATH')) {
@@ -10,12 +14,12 @@ if (!defined('ABSPATH')) {
 class SpamGuard_API {
     
     /**
-     * ⚠️ URL BASE DE LA API - ACTUALIZADA
+     * URL base de la API
      */
-    private $api_base_url = 'https://spamguard.up.railway.app';
+    private $api_base_url;
     
     /**
-     * API Key del sitio
+     * API Key
      */
     private $api_key;
     
@@ -24,186 +28,224 @@ class SpamGuard_API {
      */
     private $timeout = 15;
     
-    public function __construct() {
-        $this->api_key = SpamGuard_Core::get_option('api_key');
+    /**
+     * Singleton instance
+     */
+    private static $instance = null;
+    
+    /**
+     * Get singleton instance
+     */
+    public static function get_instance() {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
     }
     
     /**
-     * Registrar un nuevo sitio y obtener API key
+     * Constructor
      */
-    public function register_site($site_url, $admin_email) {
-        $endpoint = '/api/v1/register-site';
-        
-        $response = $this->make_request($endpoint, array(
-            'site_url' => $site_url,
-            'admin_email' => $admin_email
-        ), 'POST', false); // false = no usar API key para este endpoint
-        
-        return $response;
+    private function __construct() {
+        $this->api_base_url = get_option('spamguard_api_url', 'https://spamguard.up.railway.app');
+        $this->api_key = get_option('spamguard_api_key', '');
     }
     
     /**
-     * Verificar si un sitio ya está registrado
+     * ✅ Test de conexión con la API
      */
-    public function check_site($site_url) {
-        $endpoint = '/api/v1/check-site';
+    public function test_connection() {
+        $response = $this->make_request('/api/v1/health', null, 'GET', false);
         
-        $response = $this->make_request($endpoint . '?site_url=' . urlencode($site_url), null, 'GET', false);
+        if (isset($response['error'])) {
+            return array(
+                'success' => false,
+                'message' => $response['message']
+            );
+        }
         
-        return $response;
+        if (isset($response['status']) && $response['status'] === 'healthy') {
+            return array(
+                'success' => true,
+                'message' => __('✅ Conexión exitosa con la API', 'spamguard'),
+                'version' => isset($response['version']) ? $response['version'] : 'unknown',
+                'data' => $response
+            );
+        }
+        
+        return array(
+            'success' => false,
+            'message' => __('❌ La API no está respondiendo correctamente', 'spamguard')
+        );
     }
     
     /**
-     * Analizar un comentario
+     * ✅ Registrar sitio y obtener API key
      */
-    public function analyze_comment($comment_data) {
-        $endpoint = '/api/v1/analyze';
+    public function register_site() {
+        $site_url = get_site_url();
+        $admin_email = get_option('admin_email');
         
         $data = array(
-            'content' => $comment_data['content'],
-            'author' => $comment_data['author'],
-            'author_email' => $comment_data['author_email'],
-            'author_url' => isset($comment_data['author_url']) ? $comment_data['author_url'] : '',
-            'author_ip' => $comment_data['author_ip'],
-            'post_id' => $comment_data['post_id'],
+            'site_url' => $site_url,
+            'admin_email' => $admin_email
+        );
+        
+        $response = $this->make_request('/api/v1/register-site', $data, 'POST', false);
+        
+        if (isset($response['error'])) {
+            return array(
+                'success' => false,
+                'message' => $response['message']
+            );
+        }
+        
+        if (isset($response['api_key'])) {
+            // Guardar API key automáticamente
+            update_option('spamguard_api_key', $response['api_key']);
+            $this->api_key = $response['api_key'];
+            
+            return array(
+                'success' => true,
+                'api_key' => $response['api_key'],
+                'site_id' => $response['site_id'],
+                'message' => $response['message']
+            );
+        }
+        
+        return array(
+            'success' => false,
+            'message' => __('Error inesperado al registrar el sitio', 'spamguard')
+        );
+    }
+    
+    /**
+     * ✅ Analizar comentario
+     */
+    public function analyze_comment($comment_data) {
+        // Preparar datos en el formato que espera la API
+        $data = array(
+            'content' => $comment_data['comment_content'],
+            'author' => $comment_data['comment_author'],
+            'author_email' => isset($comment_data['comment_author_email']) ? $comment_data['comment_author_email'] : '',
+            'author_url' => isset($comment_data['comment_author_url']) ? $comment_data['comment_author_url'] : '',
+            'author_ip' => isset($comment_data['comment_author_IP']) ? $comment_data['comment_author_IP'] : $_SERVER['REMOTE_ADDR'],
+            'post_id' => isset($comment_data['comment_post_ID']) ? intval($comment_data['comment_post_ID']) : 0,
             'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
             'referer' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : ''
         );
         
-        $response = $this->make_request($endpoint, $data, 'POST');
+        $response = $this->make_request('/api/v1/analyze', $data, 'POST', true);
+        
+        // Si hay error, usar fallback local
+        if (isset($response['error'])) {
+            error_log('SpamGuard: API error - ' . $response['message']);
+            
+            // Usar análisis local como fallback
+            if (class_exists('SpamGuard_Local_Fallback')) {
+                return SpamGuard_Local_Fallback::get_instance()->analyze($comment_data);
+            }
+            
+            // Fallback seguro: aprobar el comentario
+            return array(
+                'is_spam' => false,
+                'confidence' => 0.5,
+                'spam_score' => 0,
+                'reasons' => array('API error - using safe fallback'),
+                'comment_id' => '',
+                'explanation' => array()
+            );
+        }
         
         return $response;
     }
     
     /**
-     * Enviar feedback sobre una clasificación
+     * ✅ Enviar feedback
      */
     public function send_feedback($comment_id, $is_spam) {
-        $endpoint = '/api/v1/feedback';
-        
         $data = array(
             'comment_id' => $comment_id,
             'is_spam' => $is_spam
         );
         
-        $response = $this->make_request($endpoint, $data, 'POST');
-        
-        return $response;
+        return $this->make_request('/api/v1/feedback', $data, 'POST', true);
     }
     
     /**
-     * Obtener estadísticas del sitio
+     * ✅ Obtener estadísticas
      */
     public function get_statistics() {
-        $endpoint = '/api/v1/stats';
-        
-        $response = $this->make_request($endpoint, null, 'GET');
-        
-        return $response;
+        return $this->make_request('/api/v1/stats', null, 'GET', true);
     }
     
     /**
-     * Health check de la API
-     */
-    public function health_check() {
-        $endpoint = '/health';
-        
-        $response = $this->make_request($endpoint, null, 'GET', false);
-        
-        return $response;
-    }
-    
-    /**
-     * Iniciar escaneo de malware
-     */
-    public function start_malware_scan($scan_type = 'quick', $max_size_mb = 10) {
-        $endpoint = '/api/v1/antivirus/scan/start';
-        
-        $data = array(
-            'scan_type' => $scan_type,
-            'max_size_mb' => $max_size_mb
-        );
-        
-        $response = $this->make_request($endpoint, $data, 'POST');
-        
-        return $response;
-    }
-    
-    /**
-     * Obtener progreso de escaneo
-     */
-    public function get_scan_progress($scan_id) {
-        $endpoint = '/api/v1/antivirus/scan/' . $scan_id . '/progress';
-        
-        $response = $this->make_request($endpoint, null, 'GET');
-        
-        return $response;
-    }
-    
-    /**
-     * Obtener resultados de escaneo
-     */
-    public function get_scan_results($scan_id) {
-        $endpoint = '/api/v1/antivirus/scan/' . $scan_id . '/results';
-        
-        $response = $this->make_request($endpoint, null, 'GET');
-        
-        return $response;
-    }
-    
-    /**
-     * Hacer request a la API
-     * 
-     * @param string $endpoint Endpoint (ej: /api/v1/analyze)
-     * @param array|null $data Datos a enviar (para POST)
-     * @param string $method Método HTTP (GET, POST, etc)
-     * @param bool $use_api_key Si debe incluir API key en headers
-     * @return array Respuesta parseada o array con error
+     * 🔧 MÉTODO PRINCIPAL: Hacer request a la API
      */
     private function make_request($endpoint, $data = null, $method = 'GET', $use_api_key = true) {
         
         // Construir URL completa
-        $url = $this->api_base_url . $endpoint;
+        $url = rtrim($this->api_base_url, '/') . $endpoint;
         
-        // Preparar headers
+        // Headers
         $headers = array(
             'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
             'User-Agent' => 'SpamGuard-WordPress/' . SPAMGUARD_VERSION
         );
         
-        // Agregar API key si se requiere
+        // ✅ IMPORTANTE: Usar X-API-Key (como espera la API)
         if ($use_api_key) {
-            if (!$this->api_key) {
+            if (empty($this->api_key)) {
                 return array(
                     'error' => true,
-                    'message' => 'API Key no configurada'
+                    'message' => __('API Key no configurada. Ve a Configuración para obtener una.', 'spamguard')
                 );
             }
             $headers['X-API-Key'] = $this->api_key;
         }
         
-        // Preparar argumentos de wp_remote_request
+        // Argumentos de wp_remote_request
         $args = array(
             'method' => $method,
             'timeout' => $this->timeout,
             'headers' => $headers,
-            'sslverify' => true // ✅ Importante para producción
+            'sslverify' => true
         );
         
-        // Agregar body si es POST
+        // Body para POST
         if ($data && $method === 'POST') {
             $args['body'] = json_encode($data);
+        }
+        
+        // Log de debug (solo si WP_DEBUG está activo)
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log(sprintf(
+                'SpamGuard API Request: %s %s | Has API Key: %s',
+                $method,
+                $url,
+                $use_api_key ? 'Yes' : 'No'
+            ));
         }
         
         // Hacer request
         $response = wp_remote_request($url, $args);
         
-        // Manejar errores de conexión
+        // Verificar errores de conexión
         if (is_wp_error($response)) {
+            $error_message = $response->get_error_message();
+            
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('SpamGuard API Error: ' . $error_message);
+            }
+            
             return array(
                 'error' => true,
-                'message' => 'Error de conexión: ' . $response->get_error_message(),
-                'url' => $url // Para debugging
+                'message' => sprintf(
+                    __('Error de conexión: %s', 'spamguard'),
+                    $error_message
+                ),
+                'url' => $url
             );
         }
         
@@ -214,45 +256,41 @@ class SpamGuard_API {
         $body = wp_remote_retrieve_body($response);
         $parsed = json_decode($body, true);
         
-        // Manejar respuesta
+        // Log de debug
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log(sprintf(
+                'SpamGuard API Response: %s | Body: %s',
+                $status_code,
+                substr($body, 0, 200)
+            ));
+        }
+        
+        // Manejar respuesta según código de estado
         if ($status_code >= 200 && $status_code < 300) {
             // Success
             return $parsed ? $parsed : array('success' => true);
         } else {
             // Error
+            $error_message = 'Error desconocido';
+            
+            if ($parsed) {
+                if (isset($parsed['detail'])) {
+                    $error_message = $parsed['detail'];
+                } elseif (isset($parsed['message'])) {
+                    $error_message = $parsed['message'];
+                }
+            }
+            
             return array(
                 'error' => true,
-                'message' => isset($parsed['detail']) ? $parsed['detail'] : 'Error en la API',
+                'message' => sprintf(
+                    __('Error de la API (HTTP %s): %s', 'spamguard'),
+                    $status_code,
+                    $error_message
+                ),
                 'status_code' => $status_code,
                 'response' => $parsed
             );
         }
-    }
-    
-    /**
-     * Verificar conexión con la API
-     */
-    public function test_connection() {
-        $health = $this->health_check();
-        
-        if (isset($health['error'])) {
-            return array(
-                'success' => false,
-                'message' => $health['message']
-            );
-        }
-        
-        if (isset($health['status']) && $health['status'] === 'healthy') {
-            return array(
-                'success' => true,
-                'message' => 'Conexión exitosa con la API',
-                'version' => isset($health['version']) ? $health['version'] : 'unknown'
-            );
-        }
-        
-        return array(
-            'success' => false,
-            'message' => 'API no disponible'
-        );
     }
 }
