@@ -1,8 +1,7 @@
 <?php
 /**
  * SpamGuard Local Fallback
- * 
- * Sistema de detección local cuando API no está disponible
+ * Sistema de detección local cuando la API no está disponible
  * 
  * @package SpamGuard
  * @version 3.0.0
@@ -30,32 +29,31 @@ class SpamGuard_Local_Fallback {
      * Constructor
      */
     private function __construct() {
-        // Constructor privado
+        // Constructor privado (Singleton)
     }
     
     /**
-     * Analizar comentario con reglas locales
-     * 
-     * @param array $comment_data Datos del comentario
-     * @return array Resultado del análisis
+     * ✅ Analizar comentario con reglas locales
      */
     public function analyze($comment_data) {
+        
         $spam_score = 0;
-        $flags = array();
+        $reasons = array();
         
         $content = isset($comment_data['comment_content']) ? $comment_data['comment_content'] : '';
+        $author = isset($comment_data['comment_author']) ? $comment_data['comment_author'] : '';
         $author_email = isset($comment_data['comment_author_email']) ? $comment_data['comment_author_email'] : '';
         
         // ============================================
-        // HONEYPOT CHECK
+        // 1. HONEYPOT CHECK
         // ============================================
         if (isset($comment_data['honeypot_field']) && !empty($comment_data['honeypot_field'])) {
             $spam_score += 50;
-            $flags[] = 'honeypot_triggered';
+            $reasons[] = 'Honeypot field filled (bot detected)';
         }
         
         // ============================================
-        // TIME CHECK
+        // 2. TIME CHECK
         // ============================================
         if (isset($comment_data['submit_time'])) {
             $elapsed = time() - intval($comment_data['submit_time']);
@@ -63,20 +61,19 @@ class SpamGuard_Local_Fallback {
             
             if ($elapsed < $min_time) {
                 $spam_score += 30;
-                $flags[] = 'submitted_too_fast';
+                $reasons[] = sprintf('Submitted too fast (%d seconds)', $elapsed);
             }
         }
         
         // ============================================
-        // CONTENT ANALYSIS
+        // 3. PALABRAS SPAM
         // ============================================
-        
-        // Palabras spam
         $spam_keywords = array(
             'viagra', 'cialis', 'casino', 'poker', 'lottery', 'winner',
             'congratulations', 'click here', 'buy now', 'order now',
             'limited time', 'act now', 'free money', 'no cost',
-            'risk free', 'weight loss', 'forex', 'bitcoin', 'crypto'
+            'risk free', 'weight loss', 'forex', 'bitcoin', 'crypto',
+            'payday loan', 'dating', 'singles', 'meet women', 'meet men'
         );
         
         $content_lower = strtolower($content);
@@ -85,7 +82,7 @@ class SpamGuard_Local_Fallback {
         foreach ($spam_keywords as $keyword) {
             if (strpos($content_lower, $keyword) !== false) {
                 $keyword_count++;
-                $flags[] = 'spam_keyword_' . str_replace(' ', '_', $keyword);
+                $reasons[] = sprintf('Spam keyword: "%s"', $keyword);
             }
         }
         
@@ -94,20 +91,23 @@ class SpamGuard_Local_Fallback {
         }
         
         // ============================================
-        // LINKS
+        // 4. ENLACES
         // ============================================
         $link_count = substr_count($content_lower, 'http');
         
-        if ($link_count > 3) {
+        if ($link_count > 5) {
+            $spam_score += 40;
+            $reasons[] = sprintf('Excessive links (%d)', $link_count);
+        } elseif ($link_count > 3) {
             $spam_score += 25;
-            $flags[] = 'excessive_links';
+            $reasons[] = sprintf('Multiple links (%d)', $link_count);
         } elseif ($link_count > 1) {
             $spam_score += 10;
-            $flags[] = 'multiple_links';
+            $reasons[] = sprintf('Several links (%d)', $link_count);
         }
         
         // ============================================
-        // CAPITALIZACIÓN
+        // 5. CAPITALIZACIÓN
         // ============================================
         $content_len = strlen($content);
         if ($content_len > 0) {
@@ -116,73 +116,86 @@ class SpamGuard_Local_Fallback {
             
             if ($caps_ratio > 0.5) {
                 $spam_score += 30;
-                $flags[] = 'excessive_caps';
+                $reasons[] = 'Excessive capitalization';
             } elseif ($caps_ratio > 0.3) {
                 $spam_score += 15;
-                $flags[] = 'high_caps';
+                $reasons[] = 'High capitalization';
             }
         }
         
         // ============================================
-        // EXCLAMACIONES
+        // 6. EXCLAMACIONES
         // ============================================
         $exclamation_count = substr_count($content, '!');
         
         if ($exclamation_count > 5) {
             $spam_score += 20;
-            $flags[] = 'excessive_exclamation';
+            $reasons[] = sprintf('Excessive exclamation marks (%d)', $exclamation_count);
         } elseif ($exclamation_count > 3) {
             $spam_score += 10;
-            $flags[] = 'multiple_exclamation';
+            $reasons[] = 'Multiple exclamation marks';
         }
         
         // ============================================
-        // EMAIL DESECHABLE
+        // 7. EMAIL DESECHABLE
         // ============================================
         $disposable_domains = array(
             'tempmail.com', '10minutemail.com', 'guerrillamail.com',
-            'mailinator.com', 'throwaway.email', 'temp-mail.org'
+            'mailinator.com', 'throwaway.email', 'temp-mail.org',
+            'trashmail.com', 'yopmail.com', 'fakeinbox.com'
         );
         
         foreach ($disposable_domains as $domain) {
             if (strpos($author_email, $domain) !== false) {
                 $spam_score += 40;
-                $flags[] = 'disposable_email';
+                $reasons[] = 'Disposable email address';
                 break;
             }
         }
         
         // ============================================
-        // CONTENIDO MUY CORTO O MUY LARGO
+        // 8. CONTENIDO MUY CORTO O MUY LARGO
         // ============================================
         if ($content_len < 10) {
             $spam_score += 20;
-            $flags[] = 'very_short_content';
+            $reasons[] = 'Very short content';
         } elseif ($content_len > 5000) {
             $spam_score += 15;
-            $flags[] = 'very_long_content';
+            $reasons[] = 'Very long content';
         }
         
         // ============================================
-        // CARACTERES ESPECIALES
+        // 9. CARACTERES ESPECIALES
         // ============================================
         $special_chars = preg_match_all('/[^\w\s.,!?\'-]/', $content);
-        if ($special_chars > 20) {
+        if ($special_chars > 30) {
             $spam_score += 15;
-            $flags[] = 'excessive_special_chars';
+            $reasons[] = 'Excessive special characters';
         }
         
         // ============================================
-        // CALCULAR RESULTADO
+        // 10. NOMBRE DE AUTOR SOSPECHOSO
         // ============================================
-        $is_spam = $spam_score > 50;
-        $confidence = min($spam_score / 100, 1.0);
+        if (preg_match('/\d{4,}/', $author)) {
+            $spam_score += 20;
+            $reasons[] = 'Suspicious author name (contains numbers)';
+        }
         
-        // Ajustar confidence basado en sensibilidad
+        if (strlen($author) < 3) {
+            $spam_score += 15;
+            $reasons[] = 'Very short author name';
+        }
+        
+        // ============================================
+        // CALCULAR RESULTADO FINAL
+        // ============================================
+        
+        // Obtener sensibilidad del usuario
         $sensitivity = get_option('spamguard_sensitivity', 50);
         $threshold = 50 + (($sensitivity - 50) * 0.5);
         
         $is_spam = $spam_score > $threshold;
+        $confidence = min($spam_score / 100, 1.0);
         
         // Risk level
         if ($spam_score > 80) {
@@ -193,21 +206,24 @@ class SpamGuard_Local_Fallback {
             $risk_level = 'low';
         }
         
+        // Si no es spam, dar razones positivas
+        if (!$is_spam && empty($reasons)) {
+            $reasons[] = 'No spam indicators detected';
+        }
+        
         return array(
             'is_spam' => $is_spam,
-            'category' => $is_spam ? 'spam' : 'ham',
             'confidence' => $confidence,
-            'risk_level' => $risk_level,
-            'scores' => array(
-                'ham' => 1 - $confidence,
-                'spam' => $confidence,
-                'phishing' => 0.0
-            ),
-            'flags' => $flags,
-            'processing_time_ms' => 0,
             'spam_score' => $spam_score,
-            'request_id' => 'local_' . uniqid(),
-            'cached' => false
+            'reasons' => $reasons,
+            'comment_id' => '',
+            'explanation' => array(
+                'source' => 'local_fallback',
+                'threshold' => $threshold,
+                'sensitivity' => $sensitivity
+            ),
+            'risk_level' => $risk_level,
+            'category' => $is_spam ? 'spam' : 'ham'
         );
     }
 }
