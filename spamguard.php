@@ -27,7 +27,7 @@ define('SPAMGUARD_PLUGIN_BASENAME', plugin_basename(__FILE__));
 
 // API URL por defecto (puedes cambiarlo en settings)
 if (!defined('SPAMGUARD_API_URL')) {
-    define('SPAMGUARD_API_URL', 'https://spamguard.up.railway.app/api/v1');
+    define('SPAMGUARD_API_URL', 'https://spamguard.up.railway.app');
 }
 
 /**
@@ -457,5 +457,6 @@ function spamguard_is_configured() {
 
 // Inicializar el plugin
 spamguard();
+
 
 
