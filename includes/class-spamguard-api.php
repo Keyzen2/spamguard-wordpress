@@ -86,11 +86,13 @@ class SpamGuard_API {
         $site_url = get_site_url();
         $admin_email = get_option('admin_email');
         
+        // ✅ Datos en el formato correcto que espera la API
         $data = array(
             'site_url' => $site_url,
             'admin_email' => $admin_email
         );
         
+        // ✅ Endpoint correcto: /api/v1/register-site (POST)
         $response = $this->make_request('/api/v1/register-site', $data, 'POST', false);
         
         if (isset($response['error'])) {
@@ -100,6 +102,7 @@ class SpamGuard_API {
             );
         }
         
+        // ✅ La API retorna: {site_id, api_key, created_at, message}
         if (isset($response['api_key'])) {
             // Guardar API key automáticamente
             update_option('spamguard_api_key', $response['api_key']);
@@ -115,7 +118,7 @@ class SpamGuard_API {
         
         return array(
             'success' => false,
-            'message' => __('Error inesperado al registrar el sitio', 'spamguard')
+            'message' => __('Error inesperado: La API no retornó una API key', 'spamguard')
         );
     }
     
