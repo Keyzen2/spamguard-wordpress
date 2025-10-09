@@ -15,9 +15,6 @@ class SpamGuard_Core {
     
     private static $instance = null;
     
-    /**
-     * Get singleton instance
-     */
     public static function get_instance() {
         if (null === self::$instance) {
             self::$instance = new self();
@@ -25,26 +22,23 @@ class SpamGuard_Core {
         return self::$instance;
     }
     
-    /**
-     * Constructor
-     */
     private function __construct() {
         $this->init_hooks();
     }
     
-    /**
-     * Inicializar hooks
-     */
     private function init_hooks() {
-        // AJAX handlers para registro de sitio
+        // AJAX handlers básicos
         add_action('wp_ajax_spamguard_register_site', array($this, 'ajax_register_site'));
         add_action('wp_ajax_spamguard_test_connection', array($this, 'ajax_test_connection'));
         
-        // ✅ AJAX handlers para antivirus
+        // AJAX handlers para antivirus
         add_action('wp_ajax_spamguard_start_scan', array($this, 'ajax_start_scan'));
         add_action('wp_ajax_spamguard_scan_progress', array($this, 'ajax_scan_progress'));
         add_action('wp_ajax_spamguard_quarantine_threat', array($this, 'ajax_quarantine_threat'));
         add_action('wp_ajax_spamguard_ignore_threat', array($this, 'ajax_ignore_threat'));
+        
+        // 🆕 AJAX handlers para vulnerabilidades
+        add_action('wp_ajax_spamguard_scan_vulnerabilities', array($this, 'ajax_scan_vulnerabilities'));
         
         // Cleanup diario
         add_action('spamguard_daily_cleanup', array($this, 'daily_cleanup'));
@@ -65,7 +59,6 @@ class SpamGuard_Core {
             ));
         }
         
-        // Obtener API client
         if (!class_exists('SpamGuard_API_Client')) {
             wp_send_json_error(array(
                 'message' => __('API Client not available', 'spamguard')
@@ -73,15 +66,11 @@ class SpamGuard_Core {
         }
         
         $api_client = SpamGuard_API_Client::get_instance();
-        
-        // Email del admin
         $admin_email = get_option('admin_email');
         
-        // Intentar registrar
         $result = $api_client->register_and_generate_key($admin_email);
         
         if (isset($result['success']) && $result['success']) {
-            // Guardar API key
             update_option('spamguard_api_key', $result['api_key']);
             
             wp_send_json_success(array(
@@ -96,7 +85,7 @@ class SpamGuard_Core {
     }
     
     /**
-     * AJAX: Test de conexión con la API
+     * AJAX: Test de conexión
      */
     public function ajax_test_connection() {
         check_ajax_referer('spamguard_nonce', 'nonce');
@@ -117,18 +106,14 @@ class SpamGuard_Core {
         $result = $api_client->test_connection();
         
         if ($result['success']) {
-            wp_send_json_success(array(
-                'message' => $result['message']
-            ));
+            wp_send_json_success(array('message' => $result['message']));
         } else {
-            wp_send_json_error(array(
-                'message' => $result['message']
-            ));
+            wp_send_json_error(array('message' => $result['message']));
         }
     }
     
     /**
-     * ✅ AJAX: Iniciar escaneo de antivirus
+     * AJAX: Iniciar escaneo de antivirus
      */
     public function ajax_start_scan() {
         check_ajax_referer('spamguard_ajax', 'nonce');
@@ -141,7 +126,6 @@ class SpamGuard_Core {
         
         $scan_type = sanitize_text_field($_POST['scan_type'] ?? 'quick');
         
-        // Validar tipo de escaneo
         $valid_types = array('quick', 'full', 'plugins', 'themes');
         if (!in_array($scan_type, $valid_types)) {
             wp_send_json_error(array(
@@ -179,7 +163,7 @@ class SpamGuard_Core {
     }
     
     /**
-     * ✅ AJAX: Obtener progreso del escaneo
+     * AJAX: Obtener progreso del escaneo
      */
     public function ajax_scan_progress() {
         check_ajax_referer('spamguard_ajax', 'nonce');
@@ -222,7 +206,7 @@ class SpamGuard_Core {
     }
     
     /**
-     * ✅ AJAX: Poner amenaza en cuarentena
+     * AJAX: Poner amenaza en cuarentena
      */
     public function ajax_quarantine_threat() {
         check_ajax_referer('spamguard_ajax', 'nonce');
@@ -245,7 +229,6 @@ class SpamGuard_Core {
         $threats_table = $wpdb->prefix . 'spamguard_threats';
         $quarantine_table = $wpdb->prefix . 'spamguard_quarantine';
         
-        // Obtener información de la amenaza
         $threat = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM $threats_table WHERE id = %s",
             $threat_id
@@ -257,7 +240,6 @@ class SpamGuard_Core {
             ));
         }
         
-        // Verificar que el archivo existe
         $file_path = ABSPATH . ltrim($threat->file_path, '/');
         
         if (!file_exists($file_path)) {
@@ -267,33 +249,26 @@ class SpamGuard_Core {
         }
         
         try {
-            // Leer contenido del archivo
             $file_content = file_get_contents($file_path);
             
             if ($file_content === false) {
                 throw new Exception(__('Could not read file', 'spamguard'));
             }
             
-            // Crear directorio de cuarentena si no existe
             $quarantine_dir = WP_CONTENT_DIR . '/spamguard-quarantine';
             if (!file_exists($quarantine_dir)) {
                 wp_mkdir_p($quarantine_dir);
-                
-                // Proteger directorio
                 file_put_contents($quarantine_dir . '/.htaccess', 'Deny from all');
                 file_put_contents($quarantine_dir . '/index.php', '<?php // Silence is golden');
             }
             
-            // Generar nombre único para backup
             $backup_filename = date('Ymd_His') . '_' . basename($threat->file_path);
             $backup_path = $quarantine_dir . '/' . $backup_filename;
             
-            // Mover archivo a cuarentena
             if (!rename($file_path, $backup_path)) {
                 throw new Exception(__('Could not move file to quarantine', 'spamguard'));
             }
             
-            // Registrar en BD
             $quarantine_id = wp_generate_uuid4();
             
             $wpdb->insert(
@@ -310,7 +285,6 @@ class SpamGuard_Core {
                 array('%s', '%s', '%s', '%s', '%s', '%s', '%s')
             );
             
-            // Actualizar estado de amenaza
             $wpdb->update(
                 $threats_table,
                 array(
@@ -329,16 +303,13 @@ class SpamGuard_Core {
             
         } catch (Exception $e) {
             wp_send_json_error(array(
-                'message' => sprintf(
-                    __('Quarantine failed: %s', 'spamguard'),
-                    $e->getMessage()
-                )
+                'message' => sprintf(__('Quarantine failed: %s', 'spamguard'), $e->getMessage())
             ));
         }
     }
     
     /**
-     * ✅ AJAX: Ignorar amenaza (marcar como falso positivo)
+     * AJAX: Ignorar amenaza
      */
     public function ajax_ignore_threat() {
         check_ajax_referer('spamguard_ajax', 'nonce');
@@ -383,6 +354,47 @@ class SpamGuard_Core {
     }
     
     /**
+     * 🆕 AJAX: Escanear vulnerabilidades
+     */
+    public function ajax_scan_vulnerabilities() {
+        check_ajax_referer('spamguard_ajax', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array(
+                'message' => __('Insufficient permissions', 'spamguard')
+            ));
+        }
+        
+        if (!class_exists('SpamGuard_Vulnerability_Checker')) {
+            wp_send_json_error(array(
+                'message' => __('Vulnerability checker not available', 'spamguard')
+            ));
+        }
+        
+        try {
+            $checker = SpamGuard_Vulnerability_Checker::get_instance();
+            $result = $checker->scan_all();
+            
+            if ($result['success']) {
+                wp_send_json_success(array(
+                    'message' => __('Vulnerability scan completed', 'spamguard'),
+                    'vulnerable_count' => $result['vulnerable_count'],
+                    'total_checked' => $result['total_checked']
+                ));
+            } else {
+                wp_send_json_error(array(
+                    'message' => isset($result['error']) ? $result['error'] : __('Scan failed', 'spamguard')
+                ));
+            }
+            
+        } catch (Exception $e) {
+            wp_send_json_error(array(
+                'message' => $e->getMessage()
+            ));
+        }
+    }
+    
+    /**
      * Limpieza diaria
      */
     public function daily_cleanup() {
@@ -418,22 +430,20 @@ class SpamGuard_Core {
              AND resolved_at < DATE_SUB(NOW(), INTERVAL 60 DAY)"
         );
         
-        // Limpiar caché si existe
+        // Limpiar caché
         if (class_exists('SpamGuard_API_Cache')) {
-            SpamGuard_API_Cache::get_instance()->cleanup_old_cache(7); // 7 días
+            SpamGuard_API_Cache::get_instance()->cleanup_old_cache(7);
         }
         
-        // Log de limpieza
         if (defined('WP_DEBUG') && WP_DEBUG) {
             error_log('SpamGuard: Daily cleanup completed');
         }
     }
     
     /**
-     * Widget del dashboard de WordPress
+     * Widget del dashboard
      */
     public function add_dashboard_widget() {
-        // Solo para administradores
         if (!current_user_can('manage_options')) {
             return;
         }
@@ -446,10 +456,9 @@ class SpamGuard_Core {
     }
     
     /**
-     * Renderizar widget del dashboard
+     * Renderizar widget
      */
     public function render_dashboard_widget() {
-        // Verificar si está configurado
         if (!SpamGuard::get_instance()->is_configured()) {
             ?>
             <div style="text-align: center; padding: 20px;">
@@ -466,10 +475,8 @@ class SpamGuard_Core {
             return;
         }
         
-        // Obtener estadísticas
         global $wpdb;
         
-        // Stats de spam (últimos 7 días)
         $usage_table = $wpdb->prefix . 'spamguard_usage';
         $spam_blocked = $wpdb->get_var(
             "SELECT COUNT(*) FROM $usage_table 
@@ -477,7 +484,6 @@ class SpamGuard_Core {
              AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)"
         );
         
-        // Amenazas activas
         if (class_exists('SpamGuard_Antivirus_Results')) {
             $threats = SpamGuard_Antivirus_Results::get_antivirus_stats();
             $active_threats = $threats['active_threats'];
@@ -485,33 +491,54 @@ class SpamGuard_Core {
             $active_threats = 0;
         }
         
+        // 🆕 Obtener vulnerabilidades
+        $vulnerability_count = get_option('spamguard_vulnerability_count', 0);
+        
         ?>
         <div class="spamguard-widget">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
                 <div style="text-align: center; padding: 15px; background: #f0f6fc; border-radius: 4px;">
-                    <div style="font-size: 32px; font-weight: bold; color: #2271b1;">
+                    <div style="font-size: 28px; font-weight: bold; color: #2271b1;">
                         <?php echo number_format($spam_blocked); ?>
                     </div>
-                    <div style="font-size: 12px; color: #666;">
-                        <?php _e('Spam Blocked (7d)', 'spamguard'); ?>
+                    <div style="font-size: 11px; color: #666;">
+                        <?php _e('Spam (7d)', 'spamguard'); ?>
                     </div>
                 </div>
                 
                 <div style="text-align: center; padding: 15px; background: <?php echo $active_threats > 0 ? '#fef0f0' : '#f0fdf4'; ?>; border-radius: 4px;">
-                    <div style="font-size: 32px; font-weight: bold; color: <?php echo $active_threats > 0 ? '#d63638' : '#00a32a'; ?>;">
+                    <div style="font-size: 28px; font-weight: bold; color: <?php echo $active_threats > 0 ? '#d63638' : '#00a32a'; ?>;">
                         <?php echo number_format($active_threats); ?>
                     </div>
-                    <div style="font-size: 12px; color: #666;">
-                        <?php _e('Active Threats', 'spamguard'); ?>
+                    <div style="font-size: 11px; color: #666;">
+                        <?php _e('Threats', 'spamguard'); ?>
+                    </div>
+                </div>
+                
+                <div style="text-align: center; padding: 15px; background: <?php echo $vulnerability_count > 0 ? '#fef7f0' : '#f0fdf4'; ?>; border-radius: 4px;">
+                    <div style="font-size: 28px; font-weight: bold; color: <?php echo $vulnerability_count > 0 ? '#f56e28' : '#00a32a'; ?>;">
+                        <?php echo number_format($vulnerability_count); ?>
+                    </div>
+                    <div style="font-size: 11px; color: #666;">
+                        <?php _e('Vulnerabilities', 'spamguard'); ?>
                     </div>
                 </div>
             </div>
             
-            <?php if ($active_threats > 0): ?>
+            <?php if ($active_threats > 0 || $vulnerability_count > 0): ?>
             <div style="background: #fef7f7; border-left: 4px solid #d63638; padding: 12px; margin-bottom: 15px;">
                 <strong style="color: #d63638;">⚠️ <?php _e('Security Alert', 'spamguard'); ?></strong><br>
                 <span style="font-size: 13px;">
-                    <?php printf(_n('%d threat detected', '%d threats detected', $active_threats, 'spamguard'), $active_threats); ?>
+                    <?php 
+                    $issues = array();
+                    if ($active_threats > 0) {
+                        $issues[] = sprintf(_n('%d threat', '%d threats', $active_threats, 'spamguard'), $active_threats);
+                    }
+                    if ($vulnerability_count > 0) {
+                        $issues[] = sprintf(_n('%d vulnerability', '%d vulnerabilities', $vulnerability_count, 'spamguard'), $vulnerability_count);
+                    }
+                    echo implode(' and ', $issues) . ' detected';
+                    ?>
                 </span>
             </div>
             <?php endif; ?>
@@ -522,39 +549,22 @@ class SpamGuard_Core {
                 </a>
             </p>
         </div>
-        
-        <style>
-        .spamguard-widget .dashicons {
-            vertical-align: middle;
-        }
-        </style>
         <?php
     }
     
-    /**
-     * Helper: Verificar si está configurado
-     */
+    // Helpers
     public static function is_configured() {
         return SpamGuard::get_instance()->is_configured();
     }
     
-    /**
-     * Helper: Obtener API key
-     */
     public static function get_api_key() {
         return get_option('spamguard_api_key', '');
     }
     
-    /**
-     * Helper: Obtener API URL
-     */
     public static function get_api_url() {
         return get_option('spamguard_api_url', SPAMGUARD_API_URL);
     }
     
-    /**
-     * Helper: Guardar estadística de uso
-     */
     public static function log_usage($category, $confidence, $risk_level, $processing_time = 0, $cached = false) {
         global $wpdb;
         
@@ -574,14 +584,10 @@ class SpamGuard_Core {
         );
     }
     
-    /**
-     * Helper: Guardar log de comentario analizado
-     */
     public static function log_comment_analysis($comment_data, $analysis_result) {
         global $wpdb;
         
         $table = $wpdb->prefix . 'spamguard_logs';
-        
         $is_spam = ($analysis_result['category'] === 'spam');
         
         $wpdb->insert(
