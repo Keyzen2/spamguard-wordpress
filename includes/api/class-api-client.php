@@ -11,20 +11,8 @@ if (!defined('ABSPATH')) {
 class SpamGuard_API_Client {
     
     private static $instance = null;
-    
-    /**
-     * URL base de la API
-     */
     private $api_base_url;
-    
-    /**
-     * API Key
-     */
     private $api_key;
-    
-    /**
-     * Timeout (segundos)
-     */
     private $timeout = 15;
     
     /**
@@ -41,12 +29,20 @@ class SpamGuard_API_Client {
      * Constructor
      */
     private function __construct() {
+        // ✅ Obtener URL base (sin /api/v1 al final)
         $this->api_base_url = get_option('spamguard_api_url', SPAMGUARD_API_URL);
         $this->api_key = get_option('spamguard_api_key', '');
+        
+        // ✅ Limpiar URL si tiene /api/v1 al final
+        $this->api_base_url = rtrim($this->api_base_url, '/');
+        if (substr($this->api_base_url, -7) === '/api/v1') {
+            $this->api_base_url = substr($this->api_base_url, 0, -7);
+            update_option('spamguard_api_url', $this->api_base_url);
+        }
     }
     
     /**
-     * Hacer request a la API
+     * ✅ Hacer request a la API
      */
     private function make_request($endpoint, $method = 'GET', $data = null, $use_api_key = true) {
         
@@ -56,16 +52,16 @@ class SpamGuard_API_Client {
         // Headers
         $headers = array(
             'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
             'User-Agent' => 'SpamGuard-WordPress/' . SPAMGUARD_VERSION
         );
         
-        // Agregar API key si se requiere
+        // ✅ CRÍTICO: Usar X-API-Key (NO Authorization: Bearer)
         if ($use_api_key) {
             if (empty($this->api_key)) {
                 return new WP_Error('no_api_key', __('API Key not configured', 'spamguard'));
             }
-            // ⚠️ IMPORTANTE: La API v3.0 usa formato Authorization: Bearer
-            $headers['Authorization'] = 'Bearer ' . $this->api_key;
+            $headers['X-API-Key'] = $this->api_key;
         }
         
         // Argumentos de wp_remote_request
@@ -81,9 +77,12 @@ class SpamGuard_API_Client {
             $args['body'] = json_encode($data);
         }
         
-        // Log de debug (solo si WP_DEBUG está activo)
+        // Log de debug
         if (defined('WP_DEBUG') && WP_DEBUG) {
             error_log("SpamGuard API Request: {$method} {$url}");
+            if ($data) {
+                error_log("SpamGuard API Data: " . json_encode($data));
+            }
         }
         
         // Hacer request
@@ -91,9 +90,15 @@ class SpamGuard_API_Client {
         
         // Verificar errores de conexión
         if (is_wp_error($response)) {
+            $error_msg = $response->get_error_message();
+            
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log("SpamGuard API Error: {$error_msg}");
+            }
+            
             return new WP_Error(
                 'connection_error',
-                sprintf(__('Connection error: %s', 'spamguard'), $response->get_error_message()),
+                sprintf(__('Connection error: %s', 'spamguard'), $error_msg),
                 array('url' => $url)
             );
         }
@@ -105,7 +110,8 @@ class SpamGuard_API_Client {
         
         // Log de debug
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log("SpamGuard API Response: {$status_code} - " . substr($body, 0, 200));
+            error_log("SpamGuard API Response: {$status_code}");
+            error_log("SpamGuard API Body: " . substr($body, 0, 500));
         }
         
         // Manejar respuestas
@@ -113,8 +119,15 @@ class SpamGuard_API_Client {
             return $parsed ? $parsed : array('success' => true);
         } else {
             // Error de API
-            $error_message = isset($parsed['detail']) ? $parsed['detail'] : 
-                           (isset($parsed['message']) ? $parsed['message'] : 'Unknown API error');
+            $error_message = 'Unknown API error';
+            
+            if ($parsed) {
+                if (isset($parsed['detail'])) {
+                    $error_message = $parsed['detail'];
+                } elseif (isset($parsed['message'])) {
+                    $error_message = $parsed['message'];
+                }
+            }
             
             return new WP_Error(
                 'api_error',
@@ -134,50 +147,75 @@ class SpamGuard_API_Client {
      */
     
     /**
-     * Health check
+     * ✅ Health check
      */
     public function health_check() {
-        return $this->make_request('/health', 'GET', null, false);
+        return $this->make_request('/api/v1/health', 'GET', null, false);
     }
     
     /**
-     * Registrar sitio y generar API key
+     * ✅ Registrar sitio y generar API key
      */
     public function register_and_generate_key($email) {
         $data = array(
-            'email' => $email,
             'site_url' => get_site_url(),
-            'name' => get_bloginfo('name')
+            'admin_email' => $email
         );
         
-        $result = $this->make_request('/api/v1/register', 'POST', $data, false);
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('SpamGuard: Registrando sitio...');
+            error_log('SpamGuard: URL base: ' . $this->api_base_url);
+            error_log('SpamGuard: Endpoint: /api/v1/register-site');
+        }
         
-        if (!is_wp_error($result) && isset($result['api_key'])) {
+        $result = $this->make_request('/api/v1/register-site', 'POST', $data, false);
+        
+        if (is_wp_error($result)) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('SpamGuard: ❌ Error en registro: ' . $result->get_error_message());
+            }
+            
+            return array(
+                'success' => false,
+                'message' => $result->get_error_message()
+            );
+        }
+        
+        if (isset($result['api_key'])) {
             // Guardar API key automáticamente
             update_option('spamguard_api_key', $result['api_key']);
             $this->api_key = $result['api_key'];
             
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('SpamGuard: ✅ Sitio registrado exitosamente');
+                error_log('SpamGuard: API Key: ' . substr($result['api_key'], 0, 20) . '...');
+            }
+            
             return array(
                 'success' => true,
                 'api_key' => $result['api_key'],
-                'user_id' => $result['user_id'],
-                'message' => $result['message']
+                'site_id' => isset($result['site_id']) ? $result['site_id'] : '',
+                'message' => isset($result['message']) ? $result['message'] : 'Site registered successfully'
             );
         }
         
-        return $result;
+        return array(
+            'success' => false,
+            'message' => __('API did not return an API key', 'spamguard')
+        );
     }
     
     /**
-     * Analizar comentario (Anti-Spam)
+     * ✅ Analizar comentario (Anti-Spam)
      */
     public function analyze_comment($comment) {
         $data = array(
-            'text' => $comment['comment_content'],
-            'context' => array(
-                'email' => isset($comment['comment_author_email']) ? $comment['comment_author_email'] : '',
-                'ip' => isset($comment['comment_author_IP']) ? $comment['comment_author_IP'] : ''
-            )
+            'content' => $comment['comment_content'],
+            'author' => $comment['comment_author'],
+            'author_email' => isset($comment['comment_author_email']) ? $comment['comment_author_email'] : '',
+            'author_url' => isset($comment['comment_author_url']) ? $comment['comment_author_url'] : '',
+            'author_ip' => isset($comment['comment_author_IP']) ? $comment['comment_author_IP'] : $_SERVER['REMOTE_ADDR'],
+            'post_id' => isset($comment['comment_post_ID']) ? intval($comment['comment_post_ID']) : 0
         );
         
         $result = $this->make_request('/api/v1/analyze', 'POST', $data);
@@ -190,7 +228,7 @@ class SpamGuard_API_Client {
             
             // Usar análisis local como fallback
             if (class_exists('SpamGuard_Local_Fallback')) {
-                return SpamGuard_Local_Fallback::analyze($comment);
+                return SpamGuard_Local_Fallback::get_instance()->analyze($comment);
             }
             
             // Si no hay fallback, retornar como no-spam (safe fallback)
@@ -209,7 +247,7 @@ class SpamGuard_API_Client {
     }
     
     /**
-     * Enviar feedback
+     * ✅ Enviar feedback
      */
     public function send_feedback($comment_id, $predicted_category, $correct_category, $notes = '') {
         $comment = get_comment($comment_id);
@@ -231,84 +269,24 @@ class SpamGuard_API_Client {
     }
     
     /**
-     * Obtener estadísticas
+     * ✅ Obtener estadísticas
      */
     public function get_stats($period_days = 30) {
         return $this->make_request('/api/v1/stats?period=' . intval($period_days), 'GET');
     }
     
     /**
-     * Obtener información de cuenta
+     * ✅ Obtener información de cuenta
      */
     public function get_account_info() {
         return $this->make_request('/api/v1/account', 'GET');
     }
     
     /**
-     * Obtener uso actual
+     * ✅ Obtener uso actual
      */
     public function get_usage() {
         return $this->make_request('/api/v1/account/usage', 'GET');
-    }
-    
-    /**
-     * ============================================
-     * ANTIVIRUS ENDPOINTS
-     * ============================================
-     */
-    
-    /**
-     * Iniciar escaneo de malware
-     */
-    public function start_malware_scan($scan_type = 'quick', $max_size_mb = 10) {
-        $data = array(
-            'scan_type' => $scan_type,
-            'max_size_mb' => $max_size_mb
-        );
-        
-        return $this->make_request('/api/v1/antivirus/scan/start', 'POST', $data);
-    }
-    
-    /**
-     * Obtener progreso de escaneo
-     */
-    public function get_scan_progress($scan_id) {
-        return $this->make_request('/api/v1/antivirus/scan/' . $scan_id . '/progress', 'GET');
-    }
-    
-    /**
-     * Obtener resultados de escaneo
-     */
-    public function get_scan_results($scan_id) {
-        return $this->make_request('/api/v1/antivirus/scan/' . $scan_id . '/results', 'GET');
-    }
-    
-    /**
-     * Obtener escaneos recientes
-     */
-    public function get_recent_scans($limit = 10) {
-        return $this->make_request('/api/v1/antivirus/scans/recent?limit=' . intval($limit), 'GET');
-    }
-    
-    /**
-     * Obtener estadísticas de antivirus
-     */
-    public function get_antivirus_stats() {
-        return $this->make_request('/api/v1/antivirus/stats', 'GET');
-    }
-    
-    /**
-     * Poner amenaza en cuarentena
-     */
-    public function quarantine_threat($threat_id) {
-        return $this->make_request('/api/v1/antivirus/threat/' . $threat_id . '/quarantine', 'POST');
-    }
-    
-    /**
-     * Ignorar amenaza (falso positivo)
-     */
-    public function ignore_threat($threat_id) {
-        return $this->make_request('/api/v1/antivirus/threat/' . $threat_id . '/ignore', 'DELETE');
     }
     
     /**
@@ -318,7 +296,7 @@ class SpamGuard_API_Client {
      */
     
     /**
-     * Test de conexión
+     * ✅ Test de conexión
      */
     public function test_connection() {
         $health = $this->health_check();
