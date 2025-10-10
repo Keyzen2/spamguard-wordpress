@@ -39,6 +39,7 @@ class SpamGuard_Core {
         
         // 🆕 AJAX handlers para vulnerabilidades
         add_action('wp_ajax_spamguard_scan_vulnerabilities', array($this, 'ajax_scan_vulnerabilities'));
+        add_action('spamguard_process_scan', array('SpamGuard_Antivirus_Scanner', 'process_scan'));
         
         // Cleanup diario
         add_action('spamguard_daily_cleanup', array($this, 'daily_cleanup'));
@@ -609,3 +610,4 @@ class SpamGuard_Core {
         );
     }
 }
+
