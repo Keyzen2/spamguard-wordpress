@@ -38,28 +38,28 @@ class SpamGuard_Admin {
      * Registrar páginas del menú en WordPress admin
      */
     public function register_menu_pages() {
-        // Página principal: Dashboard
+        // ✅ Menú principal → Dashboard Unificado
         add_menu_page(
             __('SpamGuard', 'spamguard'),
             __('SpamGuard', 'spamguard'),
             'manage_options',
-            'spamguard',
-            array($this, 'render_main_dashboard'),
+            'spamguard', // ← Dashboard unificado
+            array($this, 'render_unified_dashboard'),
             'dashicons-shield',
             30
         );
         
-        // Submenú: Dashboard
+        // Submenú: Dashboard Unificado
         add_submenu_page(
             'spamguard',
             __('Dashboard', 'spamguard'),
             __('Dashboard', 'spamguard'),
             'manage_options',
             'spamguard',
-            array($this, 'render_main_dashboard')
+            array($this, 'render_unified_dashboard')
         );
         
-        // Submenú: Antivirus
+        // Submenú: Antivirus (dashboard propio)
         add_submenu_page(
             'spamguard',
             __('Antivirus', 'spamguard'),
@@ -69,7 +69,7 @@ class SpamGuard_Admin {
             array($this, 'render_antivirus_page')
         );
         
-        // 🆕 Submenú: Vulnerabilidades
+        // ✅ Submenú: Vulnerabilities (dashboard propio)
         add_submenu_page(
             'spamguard',
             __('Vulnerabilities', 'spamguard'),
@@ -88,6 +88,34 @@ class SpamGuard_Admin {
             'spamguard-settings',
             array($this, 'render_settings_page')
         );
+    }
+    
+    /**
+     * ✅ NUEVO: Renderizar Dashboard Unificado
+     */
+    public function render_unified_dashboard() {
+        // Lazy load del controlador
+        if (!class_exists('SpamGuard_Unified_Dashboard')) {
+            require_once SPAMGUARD_PLUGIN_DIR . 'includes/dashboard/class-unified-dashboard.php';
+        }
+        
+        if (class_exists('SpamGuard_Unified_Dashboard')) {
+            SpamGuard_Unified_Dashboard::get_instance()->render();
+        }
+    }
+    
+    /**
+     * ✅ Renderizar Vulnerabilities
+     */
+    public function render_vulnerabilities_page() {
+        // Cargar template
+        $template = SPAMGUARD_PLUGIN_DIR . 'templates/vulnerabilities/dashboard.php';
+        
+        if (file_exists($template)) {
+            include $template;
+        } else {
+            echo '<div class="wrap"><h1>Vulnerabilities</h1><p>Template not found</p></div>';
+        }
     }
     
     /**
@@ -151,27 +179,6 @@ class SpamGuard_Admin {
         register_setting('spamguard_settings', 'spamguard_auto_scan');
         register_setting('spamguard_settings', 'spamguard_email_notifications');
         register_setting('spamguard_settings', 'spamguard_notification_email');
-    }
-    
-    
-    /**
-     * Renderizar página de vulnerabilidades
-     */
-    public function render_vulnerabilities_page() {
-        // Intentar cargar el template
-        $template_file = SPAMGUARD_PLUGIN_DIR . 'templates/vulnerabilities/dashboard.php';
-        
-        if (file_exists($template_file)) {
-            include $template_file;
-        } else {
-            // Fallback si el template no existe
-            echo '<div class="wrap">';
-            echo '<h1>' . __('Vulnerabilities', 'spamguard') . '</h1>';
-            echo '<div class="notice notice-warning">';
-            echo '<p>' . __('Vulnerability scanner template not found. Please ensure all plugin files are properly installed.', 'spamguard') . '</p>';
-            echo '</div>';
-            echo '</div>';
-        }
     }
     
     /**
@@ -665,5 +672,6 @@ class SpamGuard_Admin {
         );
     }
 }
+
 
 
