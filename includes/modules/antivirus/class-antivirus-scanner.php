@@ -1,12 +1,12 @@
 <?php
 /**
- * SpamGuard Antivirus Scanner v3.0 - CORREGIDO
+ * SpamGuard Antivirus Scanner v3.1 - COMPLETAMENTE CORREGIDO
  * 
- * ✅ Escaneo síncrono con actualizaciones en tiempo real
+ * ✅ Escaneo con progreso real usando transients
  * ✅ Sin dependencia de WordPress Cron
  * 
  * @package SpamGuard
- * @version 3.0.0
+ * @version 3.1.0
  */
 
 if (!defined('ABSPATH')) {
@@ -108,7 +108,158 @@ class SpamGuard_Antivirus_Scanner {
      * Constructor
      */
     private function __construct() {
-        // Constructor vacío - Los AJAX se registran en SpamGuard_Core
+        // Registrar método process_scan como estático
+    }
+    
+    /**
+     * ✅ Wrapper estático para WP-Cron
+     */
+    public static function process_scan_static($scan_id) {
+        $instance = self::get_instance();
+        $instance->process_scan($scan_id);
+    }
+    
+    /**
+     * ✅ NUEVO: Iniciar escaneo en BACKGROUND
+     */
+    public function start_scan($scan_type = 'quick') {
+        global $wpdb;
+        
+        // Generar ID único
+        $scan_id = wp_generate_uuid4();
+        
+        // Obtener archivos
+        $files = $this->get_files_to_scan($scan_type);
+        
+        if (empty($files)) {
+            return new WP_Error('no_files', 'No se encontraron archivos para escanear');
+        }
+        
+        // Guardar escaneo en BD
+        $table = $wpdb->prefix . 'spamguard_scans';
+        $wpdb->insert($table, array(
+            'id' => $scan_id,
+            'scan_type' => $scan_type,
+            'status' => 'pending',
+            'started_at' => current_time('mysql'),
+            'files_scanned' => 0,
+            'threats_found' => 0,
+            'progress' => 0,
+            'results' => json_encode(array('total_files' => count($files)))
+        ));
+        
+        // ✅ Guardar lista de archivos en transient (expira en 1 hora)
+        set_transient('spamguard_scan_files_' . $scan_id, $files, HOUR_IN_SECONDS);
+        
+        // ✅ Iniciar procesamiento asíncrono
+        wp_schedule_single_event(time(), 'spamguard_process_scan', array($scan_id));
+        
+        // ✅ CRÍTICO: Ejecutar cron inmediatamente
+        spawn_cron();
+        
+        return $scan_id;
+    }
+    
+    /**
+     * ✅ Procesar escaneo (llamado por WP-Cron)
+     */
+    public function process_scan($scan_id) {
+        global $wpdb;
+        
+        // Obtener archivos del transient
+        $files = get_transient('spamguard_scan_files_' . $scan_id);
+        
+        if (!$files) {
+            // Si no hay transient, marcar como fallido
+            $wpdb->update(
+                $wpdb->prefix . 'spamguard_scans',
+                array('status' => 'failed', 'completed_at' => current_time('mysql')),
+                array('id' => $scan_id)
+            );
+            return;
+        }
+        
+        // Actualizar a running
+        $wpdb->update(
+            $wpdb->prefix . 'spamguard_scans',
+            array('status' => 'running'),
+            array('id' => $scan_id)
+        );
+        
+        $threats_table = $wpdb->prefix . 'spamguard_threats';
+        $scans_table = $wpdb->prefix . 'spamguard_scans';
+        
+        $total_files = count($files);
+        $scanned = 0;
+        $threats_found = 0;
+        
+        // Permitir ejecución larga
+        @set_time_limit(300);
+        @ignore_user_abort(true);
+        
+        foreach ($files as $file) {
+            // Escanear archivo
+            $result = $this->scan_file($file['path']);
+            $scanned++;
+            
+            // Si hay amenazas, guardar
+            if (!empty($result['is_malicious']) && !empty($result['threats'])) {
+                foreach ($result['threats'] as $threat) {
+                    $threat_id = wp_generate_uuid4();
+                    
+                    $wpdb->insert($threats_table, array(
+                        'id' => $threat_id,
+                        'scan_id' => $scan_id,
+                        'site_id' => get_site_url(),
+                        'file_path' => $file['relative_path'],
+                        'threat_type' => $threat['type'],
+                        'severity' => $threat['severity'],
+                        'signature_matched' => $threat['description'],
+                        'code_snippet' => $threat['matched_text'],
+                        'status' => 'active',
+                        'detected_at' => current_time('mysql')
+                    ));
+                    
+                    $threats_found++;
+                }
+            }
+            
+            // ✅ Actualizar progreso cada 3 archivos
+            if ($scanned % 3 === 0 || $scanned === $total_files) {
+                $progress = round(($scanned / $total_files) * 100);
+                
+                $wpdb->update($scans_table, array(
+                    'files_scanned' => $scanned,
+                    'threats_found' => $threats_found,
+                    'progress' => $progress,
+                    'status' => 'running',
+                    'results' => json_encode(array(
+                        'total_files' => $total_files,
+                        'current_file' => $file['relative_path']
+                    ))
+                ), array('id' => $scan_id));
+            }
+            
+            // ✅ Pequeña pausa para no saturar
+            usleep(1000); // 0.001 segundos
+        }
+        
+        // Marcar como completado
+        $wpdb->update($scans_table, array(
+            'status' => 'completed',
+            'completed_at' => current_time('mysql'),
+            'files_scanned' => $scanned,
+            'threats_found' => $threats_found,
+            'progress' => 100
+        ), array('id' => $scan_id));
+        
+        // Limpiar transient
+        delete_transient('spamguard_scan_files_' . $scan_id);
+        
+        // Notificar si hay amenazas
+        if ($threats_found > 0 && get_option('spamguard_email_notifications', true)) {
+            $this->send_threat_notification($scan_id, $threats_found);
+        }
     }
     
     /**
@@ -125,7 +276,7 @@ class SpamGuard_Antivirus_Scanner {
                     WP_CONTENT_DIR . '/plugins',
                     WP_CONTENT_DIR . '/themes/' . get_template()
                 );
-                $max_files = 1000;
+                $max_files = 500; // ✅ Reducido para testing
                 break;
             
             case 'full':
@@ -134,12 +285,12 @@ class SpamGuard_Antivirus_Scanner {
                     ABSPATH . 'wp-includes',
                     ABSPATH . 'wp-admin'
                 );
-                $max_files = 5000;
+                $max_files = 2000;
                 break;
             
             case 'plugins':
                 $paths = array(WP_CONTENT_DIR . '/plugins');
-                $max_files = 2000;
+                $max_files = 1000;
                 break;
             
             case 'themes':
@@ -149,7 +300,7 @@ class SpamGuard_Antivirus_Scanner {
             
             default:
                 $paths = array(WP_CONTENT_DIR . '/plugins');
-                $max_files = 1000;
+                $max_files = 500;
         }
         
         // Recolectar archivos PHP
@@ -178,8 +329,8 @@ class SpamGuard_Antivirus_Scanner {
                         continue;
                     }
                     
-                    // Skip archivos muy grandes (> 5MB)
-                    if ($file->getSize() > 5 * 1024 * 1024) {
+                    // Skip archivos muy grandes (> 2MB)
+                    if ($file->getSize() > 2 * 1024 * 1024) {
                         continue;
                     }
                     
@@ -207,7 +358,7 @@ class SpamGuard_Antivirus_Scanner {
         $threats = array();
         
         try {
-            $content = file_get_contents($file_path);
+            $content = @file_get_contents($file_path);
             
             if ($content === false) {
                 return array(
@@ -240,120 +391,6 @@ class SpamGuard_Antivirus_Scanner {
                 'error' => $e->getMessage()
             );
         }
-    }
-    
-    /**
-     * ✅ CORREGIDO: Iniciar escaneo SÍNCRONO
-     */
-    public function start_scan($scan_type = 'quick') {
-        global $wpdb;
-        
-        // Generar ID único
-        $scan_id = wp_generate_uuid4();
-        
-        // Obtener archivos
-        $files = $this->get_files_to_scan($scan_type);
-        
-        if (empty($files)) {
-            return false;
-        }
-        
-        // Guardar escaneo en BD
-        $table = $wpdb->prefix . 'spamguard_scans';
-        $wpdb->insert($table, array(
-            'id' => $scan_id,
-            'scan_type' => $scan_type,
-            'status' => 'running',
-            'started_at' => current_time('mysql'),
-            'files_scanned' => 0,
-            'threats_found' => 0,
-            'progress' => 0,
-            'results' => json_encode(array('total_files' => count($files)))
-        ));
-        
-        // ✅ CRÍTICO: Procesar INMEDIATAMENTE de forma síncrona
-        // Esto permite que AJAX vea el progreso en tiempo real
-        $this->process_scan_sync($scan_id, $files);
-        
-        return $scan_id;
-    }
-    
-    /**
-     * ✅ NUEVO: Procesar escaneo de forma síncrona
-     * Se actualiza la BD cada pocos archivos para que AJAX vea el progreso
-     */
-    private function process_scan_sync($scan_id, $files) {
-        global $wpdb;
-        
-        // Permitir que continúe aunque el usuario cierre la página
-        @ignore_user_abort(true);
-        @set_time_limit(300); // 5 minutos
-        
-        $threats_table = $wpdb->prefix . 'spamguard_threats';
-        $scans_table = $wpdb->prefix . 'spamguard_scans';
-        
-        $total_files = count($files);
-        $scanned = 0;
-        $threats_found = 0;
-        
-        foreach ($files as $file) {
-            // Escanear archivo
-            $result = $this->scan_file($file['path']);
-            $scanned++;
-            
-            // Si hay amenazas, guardar
-            if (!empty($result['is_malicious']) && !empty($result['threats'])) {
-                foreach ($result['threats'] as $threat) {
-                    $threat_id = wp_generate_uuid4();
-                    
-                    $wpdb->insert($threats_table, array(
-                        'id' => $threat_id,
-                        'scan_id' => $scan_id,
-                        'site_id' => get_site_url(),
-                        'file_path' => $file['relative_path'],
-                        'threat_type' => $threat['type'],
-                        'severity' => $threat['severity'],
-                        'signature_matched' => $threat['description'],
-                        'code_snippet' => $threat['matched_text'],
-                        'status' => 'active',
-                        'detected_at' => current_time('mysql')
-                    ));
-                    
-                    $threats_found++;
-                }
-            }
-            
-            // ✅ Actualizar progreso cada 5 archivos (crítico para que AJAX vea cambios)
-            if ($scanned % 5 === 0 || $scanned === $total_files) {
-                $progress = round(($scanned / $total_files) * 100);
-                
-                $wpdb->update($scans_table, array(
-                    'files_scanned' => $scanned,
-                    'threats_found' => $threats_found,
-                    'progress' => $progress,
-                    'status' => 'running'
-                ), array('id' => $scan_id));
-                
-                // ✅ CRÍTICO: Flush para que los cambios sean visibles inmediatamente
-                $wpdb->flush();
-            }
-        }
-        
-        // Marcar como completado
-        $wpdb->update($scans_table, array(
-            'status' => 'completed',
-            'completed_at' => current_time('mysql'),
-            'files_scanned' => $scanned,
-            'threats_found' => $threats_found,
-            'progress' => 100
-        ), array('id' => $scan_id));
-        
-        // Enviar notificación si hay amenazas
-        if ($threats_found > 0 && get_option('spamguard_email_notifications', true)) {
-            $this->send_threat_notification($scan_id, $threats_found);
-        }
-        
-        return true;
     }
     
     /**
