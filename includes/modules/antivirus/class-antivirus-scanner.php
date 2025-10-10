@@ -107,15 +107,7 @@ class SpamGuard_Antivirus_Scanner {
      * Constructor
      */
     private function __construct() {
-        // AJAX Handlers
-        add_action('wp_ajax_spamguard_start_scan', array($this, 'ajax_start_scan'));
-        add_action('wp_ajax_spamguard_scan_progress', array($this, 'ajax_scan_progress'));
-        add_action('wp_ajax_spamguard_scan_results', array($this, 'ajax_scan_results'));
-        add_action('wp_ajax_spamguard_quarantine_threat', array($this, 'ajax_quarantine_threat'));
-        add_action('wp_ajax_spamguard_restore_threat', array($this, 'ajax_restore_threat'));
-        
-        // Cron para escaneo automático
-        add_action('spamguard_auto_scan', array($this, 'run_scheduled_scan'));
+        // AJAX Handlers se registrarán desde SpamGuard_Core
     }
     
     /**
@@ -264,7 +256,10 @@ class SpamGuard_Antivirus_Scanner {
         $files = $this->get_files_to_scan($scan_type);
         
         if (empty($files)) {
-            return new WP_Error('no_files', __('No files found to scan', 'spamguard'));
+            return array(
+                'success' => false,
+                'error' => __('No files found to scan', 'spamguard')
+            );
         }
         
         // Guardar escaneo en BD
@@ -283,13 +278,17 @@ class SpamGuard_Antivirus_Scanner {
         // Guardar archivos a escanear en transient
         set_transient('spamguard_scan_' . $scan_id . '_files', $files, HOUR_IN_SECONDS);
         
-        // Iniciar escaneo en background
-        wp_schedule_single_event(time() + 5, 'spamguard_process_scan', array($scan_id));
+        // ✅ CAMBIO: Ejecutar inmediatamente
+        wp_schedule_single_event(time(), 'spamguard_process_scan', array($scan_id));
+        
+        // ✅ NUEVO: Forzar ejecución de cron inmediatamente
+        spawn_cron();
         
         return array(
             'scan_id' => $scan_id,
             'total_files' => count($files),
-            'status' => 'running'
+            'status' => 'running',
+            'success' => true
         );
     }
     
@@ -402,247 +401,13 @@ class SpamGuard_Antivirus_Scanner {
         
         wp_mail($to, $subject, $message);
     }
-    
-    /**
-     * AJAX: Iniciar escaneo
-     */
-    public function ajax_start_scan() {
-        check_ajax_referer('spamguard_ajax', 'nonce');
-        
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error(array('message' => __('Permission denied', 'spamguard')));
-        }
-        
-        // ✅ AÑADIR ESTA VALIDACIÓN
-        if (!SpamGuard::get_instance()->is_configured()) {
-            wp_send_json_error(array(
-                'message' => __('SpamGuard no está configurado. Por favor, genera tu API Key primero.', 'spamguard'),
-                'redirect' => admin_url('admin.php?page=spamguard-settings')
-            ));
-            return;
-        }
-        
-        $scan_type = isset($_POST['scan_type']) ? sanitize_text_field($_POST['scan_type']) : 'quick';
-        
-        $result = $this->start_scan($scan_type);
-        
-        if (is_wp_error($result)) {
-            wp_send_json_error(array('message' => $result->get_error_message()));
-        }
-        
-        wp_send_json_success($result);
-    }
-    
-    /**
-     * AJAX: Progreso del escaneo
-     */
-    public function ajax_scan_progress() {
-        check_ajax_referer('spamguard_ajax', 'nonce');
-        
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error(array('message' => __('Permission denied', 'spamguard')));
-        }
-        
-        $scan_id = isset($_POST['scan_id']) ? sanitize_text_field($_POST['scan_id']) : '';
-        
-        if (empty($scan_id)) {
-            wp_send_json_error(array('message' => __('Scan ID required', 'spamguard')));
-        }
-        
-        global $wpdb;
-        $table = $wpdb->prefix . 'spamguard_scans';
-        
-        $scan = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM $table WHERE id = %s",
-            $scan_id
-        ));
-        
-        if (!$scan) {
-            wp_send_json_error(array('message' => __('Scan not found', 'spamguard')));
-        }
-        
-        wp_send_json_success(array(
-            'scan_id' => $scan->id,
-            'status' => $scan->status,
-            'progress' => intval($scan->progress),
-            'files_scanned' => intval($scan->files_scanned),
-            'threats_found' => intval($scan->threats_found)
-        ));
-    }
-    
-    /**
-     * AJAX: Resultados del escaneo
-     */
-    public function ajax_scan_results() {
-        check_ajax_referer('spamguard_ajax', 'nonce');
-        
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error(array('message' => __('Permission denied', 'spamguard')));
-        }
-        
-        $scan_id = isset($_POST['scan_id']) ? sanitize_text_field($_POST['scan_id']) : '';
-        
-        if (empty($scan_id)) {
-            wp_send_json_error(array('message' => __('Scan ID required', 'spamguard')));
-        }
-        
-        global $wpdb;
-        
-        $scans_table = $wpdb->prefix . 'spamguard_scans';
-        $scan = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM $scans_table WHERE id = %s",
-            $scan_id
-        ));
-        
-        if (!$scan) {
-            wp_send_json_error(array('message' => __('Scan not found', 'spamguard')));
-        }
-        
-        $threats_table = $wpdb->prefix . 'spamguard_threats';
-        $threats = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM $threats_table WHERE scan_id = %s ORDER BY severity DESC, detected_at DESC",
-            $scan_id
-        ));
-        
-        wp_send_json_success(array(
-            'scan' => $scan,
-            'threats' => $threats
-        ));
-    }
-    
-    /**
-     * AJAX: Cuarentena
-     */
-    public function ajax_quarantine_threat() {
-        check_ajax_referer('spamguard_ajax', 'nonce');
-        
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error(array('message' => __('Permission denied', 'spamguard')));
-        }
-        
-        $threat_id = isset($_POST['threat_id']) ? sanitize_text_field($_POST['threat_id']) : '';
-        
-        if (empty($threat_id)) {
-            wp_send_json_error(array('message' => __('Threat ID required', 'spamguard')));
-        }
-        
-        global $wpdb;
-        
-        // Obtener amenaza
-        $threats_table = $wpdb->prefix . 'spamguard_threats';
-        $threat = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM $threats_table WHERE id = %s",
-            $threat_id
-        ));
-        
-        if (!$threat) {
-            wp_send_json_error(array('message' => __('Threat not found', 'spamguard')));
-        }
-        
-        // Mover archivo a cuarentena
-        $file_path = ABSPATH . $threat->file_path;
-        $quarantine_dir = WP_CONTENT_DIR . '/spamguard-quarantine';
-        
-        if (!file_exists($quarantine_dir)) {
-            wp_mkdir_p($quarantine_dir);
-            file_put_contents($quarantine_dir . '/index.php', '<?php // Silence is golden');
-        }
-        
-        $backup_path = $quarantine_dir . '/' . basename($threat->file_path) . '.' . time() . '.bak';
-        
-        if (file_exists($file_path)) {
-            if (rename($file_path, $backup_path)) {
-                // Actualizar BD
-                $wpdb->update($threats_table, array(
-                    'status' => 'quarantined',
-                    'resolved_at' => current_time('mysql')
-                ), array('id' => $threat_id));
-                
-                // Guardar en tabla quarantine
-                $quarantine_table = $wpdb->prefix . 'spamguard_quarantine';
-                $wpdb->insert($quarantine_table, array(
-                    'id' => wp_generate_uuid4(),
-                    'threat_id' => $threat_id,
-                    'site_id' => get_site_url(),
-                    'file_path' => $threat->file_path,
-                    'original_content' => file_get_contents($backup_path),
-                    'backup_location' => $backup_path,
-                    'quarantined_at' => current_time('mysql')
-                ));
-                
-                wp_send_json_success(array('message' => __('Threat quarantined successfully', 'spamguard')));
-            } else {
-                wp_send_json_error(array('message' => __('Could not move file to quarantine', 'spamguard')));
-            }
-        } else {
-            wp_send_json_error(array('message' => __('File not found', 'spamguard')));
-        }
-    }
-    
-    /**
-     * AJAX: Restaurar desde cuarentena
-     */
-    public function ajax_restore_threat() {
-        check_ajax_referer('spamguard_ajax', 'nonce');
-        
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error(array('message' => __('Permission denied', 'spamguard')));
-        }
-        
-        $threat_id = isset($_POST['threat_id']) ? sanitize_text_field($_POST['threat_id']) : '';
-        
-        if (empty($threat_id)) {
-            wp_send_json_error(array('message' => __('Threat ID required', 'spamguard')));
-        }
-        
-        global $wpdb;
-        
-        // Obtener de cuarentena
-        $quarantine_table = $wpdb->prefix . 'spamguard_quarantine';
-        $quarantine = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM $quarantine_table WHERE threat_id = %s",
-            $threat_id
-        ));
-        
-        if (!$quarantine || !file_exists($quarantine->backup_location)) {
-            wp_send_json_error(array('message' => __('Quarantine backup not found', 'spamguard')));
-        }
-        
-        $original_path = ABSPATH . $quarantine->file_path;
-        
-        if (rename($quarantine->backup_location, $original_path)) {
-            // Actualizar BD
-            $threats_table = $wpdb->prefix . 'spamguard_threats';
-            $wpdb->update($threats_table, array(
-                'status' => 'restored'
-            ), array('id' => $threat_id));
-            
-            $wpdb->update($quarantine_table, array(
-                'restored_at' => current_time('mysql')
-            ), array('threat_id' => $threat_id));
-            
-            wp_send_json_success(array('message' => __('Threat restored successfully', 'spamguard')));
-        } else {
-            wp_send_json_error(array('message' => __('Could not restore file', 'spamguard')));
-        }
-    }
-    
-    /**
-     * Escaneo programado
-     */
-    public function run_scheduled_scan() {
-        if (!get_option('spamguard_antivirus_enabled', true)) {
-            return;
-        }
-        
-        $auto_scan = get_option('spamguard_auto_scan', 'weekly');
-        
-        if ($auto_scan !== 'disabled') {
-            $this->start_scan('quick');
-        }
-    }
 }
 
-// Registrar acción para procesar scans
-
-add_action('spamguard_process_scan', array(SpamGuard_Antivirus_Scanner::get_instance(), 'process_scan'));
+// ✅ CRÍTICO: Registrar hook FUERA de la clase
+// Esto debe estar al final del archivo
+add_action('spamguard_process_scan', function($scan_id) {
+    if (class_exists('SpamGuard_Antivirus_Scanner')) {
+        $scanner = SpamGuard_Antivirus_Scanner::get_instance();
+        $scanner->process_scan($scan_id);
+    }
+});
