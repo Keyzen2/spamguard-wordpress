@@ -13,7 +13,7 @@ class SpamGuard_API_Client {
     private static $instance = null;
     private $api_base_url;
     private $api_key;
-    private $timeout = 15;
+    private $timeout = 30; // ✅ AUMENTADO de 15 a 30 segundos
     
     /**
      * Get singleton instance
@@ -42,7 +42,7 @@ class SpamGuard_API_Client {
     }
     
     /**
-     * ✅ Hacer request a la API
+     * ✅ MEJORADO: Hacer request a la API con mejor manejo de errores
      */
     private function make_request($endpoint, $method = 'GET', $data = null, $use_api_key = true) {
         
@@ -69,7 +69,9 @@ class SpamGuard_API_Client {
             'method' => $method,
             'timeout' => $this->timeout,
             'headers' => $headers,
-            'sslverify' => true
+            'sslverify' => true,
+            'httpversion' => '1.1', // ✅ NUEVO: Forzar HTTP/1.1
+            'blocking' => true // ✅ NUEVO: Asegurar que espere respuesta
         );
         
         // Body para POST
@@ -85,10 +87,31 @@ class SpamGuard_API_Client {
             }
         }
         
-        // Hacer request
-        $response = wp_remote_request($url, $args);
+        // ✅ NUEVO: Reintentar en caso de fallo
+        $max_retries = 2;
+        $retry_count = 0;
+        $last_error = null;
         
-        // Verificar errores de conexión
+        while ($retry_count <= $max_retries) {
+            $response = wp_remote_request($url, $args);
+            
+            // Si no es error de conexión, salir del loop
+            if (!is_wp_error($response)) {
+                break;
+            }
+            
+            $last_error = $response;
+            $retry_count++;
+            
+            if ($retry_count <= $max_retries) {
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log("SpamGuard API: Retrying ({$retry_count}/{$max_retries})...");
+                }
+                sleep(1); // Esperar 1 segundo antes de reintentar
+            }
+        }
+        
+        // Si todos los reintentos fallaron
         if (is_wp_error($response)) {
             $error_msg = $response->get_error_message();
             
@@ -112,6 +135,24 @@ class SpamGuard_API_Client {
         if (defined('WP_DEBUG') && WP_DEBUG) {
             error_log("SpamGuard API Response: {$status_code}");
             error_log("SpamGuard API Body: " . substr($body, 0, 500));
+        }
+        
+        // ✅ NUEVO: Manejo específico de código 502
+        if ($status_code === 502) {
+            return new WP_Error(
+                'api_unavailable',
+                __('API temporarily unavailable (502). Please try again in a moment.', 'spamguard'),
+                array('status_code' => 502)
+            );
+        }
+        
+        // ✅ NUEVO: Manejo de código 504 (Gateway Timeout)
+        if ($status_code === 504) {
+            return new WP_Error(
+                'api_timeout',
+                __('API request timed out (504). The server is taking too long to respond.', 'spamguard'),
+                array('status_code' => 504)
+            );
         }
         
         // Manejar respuestas
@@ -278,7 +319,7 @@ class SpamGuard_API_Client {
     /**
      * ✅ Obtener información de cuenta
      */
-        public function get_account_info() {
+    public function get_account_info() {
         // Retornar datos dummy por ahora
         return array(
             'plan' => 'free',
@@ -331,4 +372,3 @@ class SpamGuard_API_Client {
         );
     }
 }
-
