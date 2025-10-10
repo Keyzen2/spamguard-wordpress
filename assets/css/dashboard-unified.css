@@ -1,0 +1,336 @@
+/* ================================================
+   SPAMGUARD UNIFIED DASHBOARD
+   ================================================ */
+
+.spamguard-unified-dashboard h1 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.spamguard-unified-dashboard h1 .dashicons {
+    font-size: 32px;
+    width: 32px;
+    height: 32px;
+    color: #2271b1;
+}
+
+.spamguard-unified-dashboard h1 .version {
+    font-size: 14px;
+    color: #666;
+    font-weight: normal;
+    margin-left: 10px;
+}
+
+/* ================================================
+   SECURITY SCORE SECTION
+   ================================================ */
+.security-score-section {
+    margin: 30px 0;
+}
+
+.score-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 8px;
+    padding: 30px;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 30px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.score-circle {
+    position: relative;
+    width: 140px;
+    height: 140px;
+    flex-shrink: 0;
+}
+
+.score-circle svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.score-circle circle {
+    fill: none;
+    stroke-width: 10;
+}
+
+.score-circle circle.bg {
+    stroke: rgba(255,255,255,0.2);
+}
+
+.score-circle circle.progress {
+    stroke: white;
+    stroke-linecap: round;
+    stroke-dasharray: 283; /* 2 * PI * 45 */
+    stroke-dashoffset: calc(283 - (283 * var(--score, 0) / 100));
+    transition: stroke-dashoffset 1.5s ease;
+}
+
+.score-circle .content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.score-circle .number {
+    font-size: 42px;
+    font-weight: bold;
+    line-height: 1;
+}
+
+.score-circle .label {
+    font-size: 14px;
+    opacity: 0.9;
+    margin-top: 5px;
+}
+
+.score-info h2 {
+    margin: 0 0 10px 0;
+    color: white;
+    font-size: 24px;
+}
+
+.score-info p {
+    margin: 0;
+    font-size: 16px;
+    opacity: 0.95;
+}
+
+/* ================================================
+   QUICK STATS GRID
+   ================================================ */
+.quick-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    margin: 30px 0;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    border-left: 4px solid #2271b1;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+.stat-card.spam {
+    border-left-color: #d63638;
+}
+
+.stat-card.threats.danger {
+    border-left-color: #d63638;
+}
+
+.stat-card.threats.success {
+    border-left-color: #00a32a;
+}
+
+.stat-card.vulnerabilities.warning {
+    border-left-color: #dba617;
+}
+
+.stat-card.vulnerabilities.success {
+    border-left-color: #00a32a;
+}
+
+.stat-card .icon {
+    font-size: 40px;
+    flex-shrink: 0;
+}
+
+.stat-card .content {
+    flex: 1;
+}
+
+.stat-card .value {
+    font-size: 32px;
+    font-weight: bold;
+    color: #1d2327;
+    line-height: 1;
+    margin-bottom: 5px;
+}
+
+.stat-card .label {
+    font-size: 13px;
+    color: #646970;
+}
+
+/* ================================================
+   MODULES GRID
+   ================================================ */
+.modules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin: 30px 0;
+}
+
+.module-card {
+    background: white;
+    border-radius: 8px;
+    padding: 25px;
+    border: 2px solid #dcdcde;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    transition: all 0.3s;
+}
+
+.module-card:hover {
+    border-color: #2271b1;
+    box-shadow: 0 4px 12px rgba(34, 113, 177, 0.15);
+    transform: translateY(-2px);
+}
+
+.module-card.active {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+}
+
+.module-card .module-icon {
+    font-size: 48px;
+    margin-bottom: 15px;
+}
+
+.module-card .module-info h3 {
+    margin: 0 0 10px 0;
+    font-size: 18px;
+    color: #1d2327;
+}
+
+.module-card .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    background: #f0f0f1;
+    margin-bottom: 15px;
+}
+
+.module-card .module-stats {
+    margin: 15px 0;
+    padding: 12px;
+    background: rgba(0,0,0,0.02);
+    border-radius: 6px;
+}
+
+.module-card .stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    font-size: 13px;
+}
+
+.module-card .stat-row .label {
+    color: #646970;
+}
+
+.module-card .stat-row .value {
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.module-card .button {
+    margin-top: 15px;
+}
+
+/* ================================================
+   ACTIVITY SECTION
+   ================================================ */
+.activity-section {
+    background: white;
+    border-radius: 8px;
+    padding: 25px;
+    margin: 30px 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.activity-section h2 {
+    margin-top: 0;
+    font-size: 20px;
+    color: #1d2327;
+}
+
+.activity-timeline {
+    margin-top: 20px;
+}
+
+.activity-item {
+    display: flex;
+    gap: 15px;
+    padding: 15px;
+    border-left: 3px solid #dcdcde;
+    margin-left: 12px;
+    transition: all 0.3s;
+    cursor: pointer;
+}
+
+.activity-item:hover {
+    background: #f0f0f1;
+    border-left-color: #2271b1;
+}
+
+.activity-item .icon {
+    font-size: 28px;
+    flex-shrink: 0;
+}
+
+.activity-item .content {
+    flex: 1;
+}
+
+.activity-item .title {
+    font-weight: 600;
+    color: #1d2327;
+    margin-bottom: 4px;
+}
+
+.activity-item .description {
+    font-size: 13px;
+    color: #646970;
+    margin-bottom: 6px;
+}
+
+.activity-item .time {
+    font-size: 12px;
+    color: #999;
+}
+
+/* ================================================
+   RESPONSIVE
+   ================================================ */
+@media (max-width: 782px) {
+    .spamguard-unified-dashboard {
+        margin: 10px;
+    }
+    
+    .score-card {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .quick-stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .modules-grid {
+        grid-template-columns: 1fr;
+    }
+}
