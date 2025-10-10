@@ -69,6 +69,16 @@ class SpamGuard_Admin {
             array($this, 'render_antivirus_page')
         );
         
+        // 🆕 Submenú: Vulnerabilidades
+        add_submenu_page(
+            'spamguard',
+            __('Vulnerabilities', 'spamguard'),
+            __('Vulnerabilities', 'spamguard'),
+            'manage_options',
+            'spamguard-vulnerabilities',
+            array($this, 'render_vulnerabilities_page')
+        );
+        
         // Submenú: Settings
         add_submenu_page(
             'spamguard',
@@ -655,4 +665,5 @@ class SpamGuard_Admin {
         );
     }
 }
+
 
