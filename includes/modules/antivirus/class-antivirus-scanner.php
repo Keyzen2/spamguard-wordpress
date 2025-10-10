@@ -1,8 +1,9 @@
 <?php
 /**
- * SpamGuard Antivirus Scanner v3.0
+ * SpamGuard Antivirus Scanner v3.0 - CORREGIDO
  * 
- * Scanner 100% local - NO requiere API
+ * ✅ Escaneo síncrono con actualizaciones en tiempo real
+ * ✅ Sin dependencia de WordPress Cron
  * 
  * @package SpamGuard
  * @version 3.0.0
@@ -107,7 +108,7 @@ class SpamGuard_Antivirus_Scanner {
      * Constructor
      */
     private function __construct() {
-        // AJAX Handlers se registrarán desde SpamGuard_Core
+        // Constructor vacío - Los AJAX se registran en SpamGuard_Core
     }
     
     /**
@@ -120,7 +121,6 @@ class SpamGuard_Antivirus_Scanner {
         // Determinar qué escanear
         switch ($scan_type) {
             case 'quick':
-                // Solo plugins y themes activos
                 $paths = array(
                     WP_CONTENT_DIR . '/plugins',
                     WP_CONTENT_DIR . '/themes/' . get_template()
@@ -129,7 +129,6 @@ class SpamGuard_Antivirus_Scanner {
                 break;
             
             case 'full':
-                // Todo WordPress
                 $paths = array(
                     WP_CONTENT_DIR,
                     ABSPATH . 'wp-includes',
@@ -139,13 +138,11 @@ class SpamGuard_Antivirus_Scanner {
                 break;
             
             case 'plugins':
-                // Solo plugins
                 $paths = array(WP_CONTENT_DIR . '/plugins');
                 $max_files = 2000;
                 break;
             
             case 'themes':
-                // Solo themes
                 $paths = array(WP_CONTENT_DIR . '/themes');
                 $max_files = 500;
                 break;
@@ -194,7 +191,9 @@ class SpamGuard_Antivirus_Scanner {
                     );
                 }
             } catch (Exception $e) {
-                error_log('[SpamGuard Antivirus] Error scanning path: ' . $path . ' - ' . $e->getMessage());
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('[SpamGuard] Error scanning path: ' . $path . ' - ' . $e->getMessage());
+                }
             }
         }
         
@@ -244,7 +243,7 @@ class SpamGuard_Antivirus_Scanner {
     }
     
     /**
-     * Iniciar escaneo
+     * ✅ CORREGIDO: Iniciar escaneo SÍNCRONO
      */
     public function start_scan($scan_type = 'quick') {
         global $wpdb;
@@ -256,10 +255,7 @@ class SpamGuard_Antivirus_Scanner {
         $files = $this->get_files_to_scan($scan_type);
         
         if (empty($files)) {
-            return array(
-                'success' => false,
-                'error' => __('No files found to scan', 'spamguard')
-            );
+            return false;
         }
         
         // Guardar escaneo en BD
@@ -275,34 +271,23 @@ class SpamGuard_Antivirus_Scanner {
             'results' => json_encode(array('total_files' => count($files)))
         ));
         
-        // Guardar archivos a escanear en transient
-        set_transient('spamguard_scan_' . $scan_id . '_files', $files, HOUR_IN_SECONDS);
+        // ✅ CRÍTICO: Procesar INMEDIATAMENTE de forma síncrona
+        // Esto permite que AJAX vea el progreso en tiempo real
+        $this->process_scan_sync($scan_id, $files);
         
-        // ✅ CAMBIO: Ejecutar inmediatamente
-        wp_schedule_single_event(time(), 'spamguard_process_scan', array($scan_id));
-        
-        // ✅ NUEVO: Forzar ejecución de cron inmediatamente
-        spawn_cron();
-        
-        return array(
-            'scan_id' => $scan_id,
-            'total_files' => count($files),
-            'status' => 'running',
-            'success' => true
-        );
+        return $scan_id;
     }
     
     /**
-     * Procesar escaneo (background)
+     * ✅ NUEVO: Procesar escaneo de forma síncrona
+     * Se actualiza la BD cada pocos archivos para que AJAX vea el progreso
      */
-    public function process_scan($scan_id) {
+    private function process_scan_sync($scan_id, $files) {
         global $wpdb;
         
-        $files = get_transient('spamguard_scan_' . $scan_id . '_files');
-        
-        if (!$files) {
-            return;
-        }
+        // Permitir que continúe aunque el usuario cierre la página
+        @ignore_user_abort(true);
+        @set_time_limit(300); // 5 minutos
         
         $threats_table = $wpdb->prefix . 'spamguard_threats';
         $scans_table = $wpdb->prefix . 'spamguard_scans';
@@ -311,21 +296,8 @@ class SpamGuard_Antivirus_Scanner {
         $scanned = 0;
         $threats_found = 0;
         
-        // Procesar en batches para evitar timeout
-        $batch_size = 50;
-        $start_time = time();
-        $max_execution_time = 20; // 20 segundos
-        
         foreach ($files as $file) {
-            // Check timeout
-            if (time() - $start_time > $max_execution_time) {
-                // Guardar progreso y reprogramar
-                $remaining_files = array_slice($files, $scanned);
-                set_transient('spamguard_scan_' . $scan_id . '_files', $remaining_files, HOUR_IN_SECONDS);
-                wp_schedule_single_event(time() + 5, 'spamguard_process_scan', array($scan_id));
-                return;
-            }
-            
+            // Escanear archivo
             $result = $this->scan_file($file['path']);
             $scanned++;
             
@@ -351,19 +323,23 @@ class SpamGuard_Antivirus_Scanner {
                 }
             }
             
-            // Actualizar progreso cada 10 archivos
-            if ($scanned % 10 === 0) {
+            // ✅ Actualizar progreso cada 5 archivos (crítico para que AJAX vea cambios)
+            if ($scanned % 5 === 0 || $scanned === $total_files) {
                 $progress = round(($scanned / $total_files) * 100);
                 
                 $wpdb->update($scans_table, array(
                     'files_scanned' => $scanned,
                     'threats_found' => $threats_found,
-                    'progress' => $progress
+                    'progress' => $progress,
+                    'status' => 'running'
                 ), array('id' => $scan_id));
+                
+                // ✅ CRÍTICO: Flush para que los cambios sean visibles inmediatamente
+                $wpdb->flush();
             }
         }
         
-        // Completado
+        // Marcar como completado
         $wpdb->update($scans_table, array(
             'status' => 'completed',
             'completed_at' => current_time('mysql'),
@@ -372,13 +348,12 @@ class SpamGuard_Antivirus_Scanner {
             'progress' => 100
         ), array('id' => $scan_id));
         
-        // Limpiar transient
-        delete_transient('spamguard_scan_' . $scan_id . '_files');
-        
         // Enviar notificación si hay amenazas
         if ($threats_found > 0 && get_option('spamguard_email_notifications', true)) {
             $this->send_threat_notification($scan_id, $threats_found);
         }
+        
+        return true;
     }
     
     /**
@@ -402,12 +377,3 @@ class SpamGuard_Antivirus_Scanner {
         wp_mail($to, $subject, $message);
     }
 }
-
-// ✅ CRÍTICO: Registrar hook FUERA de la clase
-// Esto debe estar al final del archivo
-add_action('spamguard_process_scan', function($scan_id) {
-    if (class_exists('SpamGuard_Antivirus_Scanner')) {
-        $scanner = SpamGuard_Antivirus_Scanner::get_instance();
-        $scanner->process_scan($scan_id);
-    }
-});
