@@ -364,6 +364,78 @@ class SpamGuard {
         add_option('spamguard_first_install', current_time('mysql'));
     }
     
+    /**
+     * ✅ MEJORADO: Activación sin llamar a la API
+     */
+    public function activate() {
+        $this->create_tables();
+        $this->set_default_options();
+        
+        // ✅ Cron jobs
+        if (!wp_next_scheduled('spamguard_daily_cleanup')) {
+            wp_schedule_event(time(), 'daily', 'spamguard_daily_cleanup');
+        }
+        
+        // ✅ NO programar escaneos automáticos en activación
+        // Esperar a que el usuario lo configure
+        
+        flush_rewrite_rules();
+        set_transient('spamguard_activated', true, 60);
+        
+        // ✅ NO hacer health check aquí (causa 502)
+    }
+    
+    /**
+     * ✅ Mejorar notices de admin
+     */
+    public function admin_notices() {
+        // ✅ Error 502 detectado
+        if (isset($_GET['spamguard_error']) && $_GET['spamguard_error'] === '502') {
+            ?>
+            <div class="notice notice-error is-dismissible">
+                <h3><?php _e('SpamGuard: API Connection Error', 'spamguard'); ?></h3>
+                <p>
+                    <?php _e('The API is temporarily unavailable (502 Error). This is usually temporary.', 'spamguard'); ?>
+                </p>
+                <p>
+                    <strong><?php _e('What to do:', 'spamguard'); ?></strong>
+                </p>
+                <ul style="list-style-type: disc; margin-left: 20px;">
+                    <li><?php _e('Wait a few minutes and try again', 'spamguard'); ?></li>
+                    <li><?php _e('The plugin will work locally until the API is available', 'spamguard'); ?></li>
+                    <li><?php _e('Your site is still protected with local fallback rules', 'spamguard'); ?></li>
+                </ul>
+            </div>
+            <?php
+            return;
+        }
+        
+        // Notice de activación
+        if (get_transient('spamguard_activated')) {
+            delete_transient('spamguard_activated');
+            
+            if (!$this->is_configured()) {
+                ?>
+                <div class="notice notice-success is-dismissible">
+                    <h3><?php _e('Welcome to SpamGuard v3.0!', 'spamguard'); ?> 🎉</h3>
+                    <p>
+                        <?php _e('Thank you for installing SpamGuard Security Suite.', 'spamguard'); ?>
+                        <strong><?php _e('Get started by generating your FREE API key!', 'spamguard'); ?></strong>
+                    </p>
+                    <p>
+                        <a href="<?php echo admin_url('admin.php?page=spamguard-settings'); ?>" class="button button-primary">
+                            <?php _e('Generate API Key', 'spamguard'); ?>
+                        </a>
+                    </p>
+                    <p style="color: #666; font-size: 13px;">
+                        ℹ️ <?php _e('Note: If you see a 502 error, wait a moment and refresh. The API may be starting up.', 'spamguard'); ?>
+                    </p>
+                </div>
+                <?php
+            }
+        }
+    }
+    
     public function admin_notices() {
         if (get_transient('spamguard_activated')) {
             delete_transient('spamguard_activated');
@@ -417,3 +489,4 @@ function spamguard_is_configured() {
 
 // ✅ Iniciar
 spamguard();
+
