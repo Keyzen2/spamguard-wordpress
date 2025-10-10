@@ -40,23 +40,23 @@ class SpamGuard_Admin {
     public function register_menu_pages() {
         // Página principal: Dashboard
         add_menu_page(
-            __('SpamGuard', 'spamguard'),           // Page title
-            __('SpamGuard', 'spamguard'),           // Menu title
-            'manage_options',                        // Capability
-            'spamguard',                            // Menu slug
-            array($this, 'render_main_dashboard'),  // Callback
-            'dashicons-shield',                     // Icon
-            30                                      // Position
+            __('SpamGuard', 'spamguard'),
+            __('SpamGuard', 'spamguard'),
+            'manage_options',
+            'spamguard',
+            array($this, 'render_main_dashboard'),
+            'dashicons-shield',
+            30
         );
         
-        // Submenú: Dashboard (mismo que arriba)
+        // Submenú: Dashboard
         add_submenu_page(
-            'spamguard',                            // Parent slug
-            __('Dashboard', 'spamguard'),           // Page title
-            __('Dashboard', 'spamguard'),           // Menu title
-            'manage_options',                        // Capability
-            'spamguard',                            // Menu slug
-            array($this, 'render_main_dashboard')   // Callback
+            'spamguard',
+            __('Dashboard', 'spamguard'),
+            __('Dashboard', 'spamguard'),
+            'manage_options',
+            'spamguard',
+            array($this, 'render_main_dashboard')
         );
         
         // Submenú: Antivirus
@@ -69,16 +69,6 @@ class SpamGuard_Admin {
             array($this, 'render_antivirus_page')
         );
         
-        // Submenú: Vulnerabilities
-        add_submenu_page(
-            'spamguard',
-            __('Vulnerabilities', 'spamguard'),
-            __('Vulnerabilities', 'spamguard'),
-            'manage_options',
-            'spamguard-vulnerabilities',
-            array($this, 'render_vulnerabilities_page')
-        );
-        
         // Submenú: Settings
         add_submenu_page(
             'spamguard',
@@ -88,6 +78,46 @@ class SpamGuard_Admin {
             'spamguard-settings',
             array($this, 'render_settings_page')
         );
+    }
+    
+    /**
+     * ✅ Renderizar dashboard principal (lazy load del controlador)
+     */
+    public function render_main_dashboard() {
+        // ✅ Cargar el controlador SOLO cuando se necesita
+        if (!class_exists('SpamGuard_Dashboard_Controller')) {
+            require_once SPAMGUARD_PLUGIN_DIR . 'includes/dashboard/class-dashboard-controller.php';
+        }
+        
+        if (class_exists('SpamGuard_Dashboard_Controller')) {
+            $dashboard = SpamGuard_Dashboard_Controller::get_instance();
+            $dashboard->render_dashboard();
+        } else {
+            echo '<div class="wrap">';
+            echo '<h1>' . __('SpamGuard Dashboard', 'spamguard') . '</h1>';
+            echo '<p>' . __('Dashboard controller not found.', 'spamguard') . '</p>';
+            echo '</div>';
+        }
+    }
+    
+    /**
+     * ✅ Renderizar página de antivirus (lazy load)
+     */
+    public function render_antivirus_page() {
+        // ✅ Cargar SOLO cuando se necesita
+        if (!class_exists('SpamGuard_Antivirus_Dashboard')) {
+            require_once SPAMGUARD_PLUGIN_DIR . 'includes/dashboard/class-antivirus-dashboard.php';
+        }
+        
+        if (class_exists('SpamGuard_Antivirus_Dashboard')) {
+            $dashboard = SpamGuard_Antivirus_Dashboard::get_instance();
+            $dashboard->render();
+        } else {
+            echo '<div class="wrap">';
+            echo '<h1>' . __('Antivirus', 'spamguard') . '</h1>';
+            echo '<p>' . __('Antivirus module not found.', 'spamguard') . '</p>';
+            echo '</div>';
+        }
     }
     
     /**
@@ -113,35 +143,6 @@ class SpamGuard_Admin {
         register_setting('spamguard_settings', 'spamguard_notification_email');
     }
     
-    /**
-     * Renderizar dashboard principal
-     */
-    public function render_main_dashboard() {
-        if (class_exists('SpamGuard_Dashboard_Controller')) {
-            $dashboard = SpamGuard_Dashboard_Controller::get_instance();
-            $dashboard->render_dashboard();
-        } else {
-            echo '<div class="wrap">';
-            echo '<h1>' . __('SpamGuard Dashboard', 'spamguard') . '</h1>';
-            echo '<p>' . __('Dashboard controller not found.', 'spamguard') . '</p>';
-            echo '</div>';
-        }
-    }
-    
-    /**
-     * Renderizar página de antivirus
-     */
-    public function render_antivirus_page() {
-        if (class_exists('SpamGuard_Antivirus_Dashboard')) {
-            $dashboard = SpamGuard_Antivirus_Dashboard::get_instance();
-            $dashboard->render();
-        } else {
-            echo '<div class="wrap">';
-            echo '<h1>' . __('Antivirus', 'spamguard') . '</h1>';
-            echo '<p>' . __('Antivirus module not found.', 'spamguard') . '</p>';
-            echo '</div>';
-        }
-    }
     
     /**
      * Renderizar página de vulnerabilidades
@@ -654,3 +655,4 @@ class SpamGuard_Admin {
         );
     }
 }
+
