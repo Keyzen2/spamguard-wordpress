@@ -217,30 +217,27 @@ class SpamGuard {
      * ✅ ACTIVACIÓN DEL PLUGIN (CORREGIDA - ÚNICA VERSIÓN)
      */
     public function activate() {
-        // ✅ Set tiempo de ejecución (por si acaso)
-        @set_time_limit(300);
-        @ini_set('memory_limit', '256M');
+        // ✅ SOLO operaciones rápidas en activación
         
         // Crear tablas (rápido)
         $this->create_tables();
         
-        // Configuración por defecto (rápido)
+        // Opciones por defecto (rápido)
         $this->set_default_options();
         
-        // Programar limpieza diaria (rápido)
+        // Programar limpieza (rápido)
         if (!wp_next_scheduled('spamguard_daily_cleanup')) {
             wp_schedule_event(time(), 'daily', 'spamguard_daily_cleanup');
         }
         
-        // Flush rewrite rules (rápido)
-        flush_rewrite_rules();
+        // ✅ NO hacer health check aquí
+        // ✅ NO cargar módulos pesados
+        // Se harán después, cuando el usuario visite el dashboard
         
-        // Marcar como activado
+        // Marcar como recién activado
         set_transient('spamguard_activated', true, 60);
         
-        // ✅ NO hacer health check
-        // ✅ NO cargar módulos pesados
-        // ✅ TODO lo demás se hace después
+        flush_rewrite_rules();
     }
     
     /**
@@ -480,4 +477,5 @@ function spamguard_is_configured() {
 
 // ✅ INICIAR PLUGIN
 spamguard();
+
 
