@@ -1,0 +1,14 @@
+# Prevenir timeout en activación
+<IfModule mod_rewrite.c>
+RewriteEngine Off
+</IfModule>
+
+<IfModule mod_headers.c>
+Header set X-SpamGuard-Version "3.0.0"
+</IfModule>
+
+# Aumentar timeout para requests
+<IfModule mod_fcgid.c>
+FcgidIOTimeout 300
+FcgidConnectTimeout 60
+</IfModule>
