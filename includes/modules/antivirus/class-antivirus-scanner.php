@@ -182,16 +182,25 @@ class SpamGuard_Antivirus_Scanner {
      * ✅ Procesar escaneo de forma asíncrona (sin bloquear)
      */
     private function process_scan_async($scan_id) {
-        // Intentar ejecutar en background
+        // Intentar ejecutar en background usando diferentes métodos
+
+        // Método 1: FastCGI (ideal)
         if (function_exists('fastcgi_finish_request')) {
-            // Para FastCGI - enviar respuesta al cliente primero
             fastcgi_finish_request();
             $this->process_scan($scan_id);
-        } else {
-            // Fallback: usar cron como backup
-            wp_schedule_single_event(time(), 'spamguard_process_scan', array($scan_id));
-            spawn_cron();
+            return;
         }
+
+        // Método 2: Ejecutar directamente pero con timeout de protección
+        // Este método asegura que el escaneo se ejecute inmediatamente
+        // y no depende de cron que puede fallar en algunos servidores
+
+        // Permitir ejecución larga
+        @set_time_limit(300);
+        @ignore_user_abort(true);
+
+        // Ejecutar el escaneo inmediatamente
+        $this->process_scan($scan_id);
     }
 
     /**

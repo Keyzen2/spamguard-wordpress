@@ -137,15 +137,15 @@ class SpamGuard_Admin {
             wp_die(__('You do not have sufficient permissions to access this page.', 'spamguard'));
         }
 
-        // Cargar template
-        $template = SPAMGUARD_PLUGIN_DIR . 'templates/admin-logs.php';
+        // Cargar nuevo dashboard completo
+        $template = SPAMGUARD_PLUGIN_DIR . 'templates/antispam-dashboard.php';
 
         if (file_exists($template)) {
             include $template;
         } else {
             echo '<div class="wrap">';
-            echo '<h1>' . __('Anti-Spam Logs', 'spamguard') . '</h1>';
-            echo '<p>' . __('Template not found. Please check if templates/admin-logs.php exists.', 'spamguard') . '</p>';
+            echo '<h1>' . __('Anti-Spam Dashboard', 'spamguard') . '</h1>';
+            echo '<p>' . __('Template not found.', 'spamguard') . '</p>';
             echo '</div>';
         }
     }
