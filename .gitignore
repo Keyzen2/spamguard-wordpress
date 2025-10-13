@@ -1,0 +1,33 @@
+# WordPress
+.DS_Store
+Thumbs.db
+wp-config-local.php
+/.htaccess
+
+# Logs
+*.log
+error_log
+debug.log
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*~
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Node modules (si usas npm)
+node_modules/
+package-lock.json
+
+# Composer
+/vendor/
+
+# Environment files
+.env
+.env.local
