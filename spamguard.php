@@ -89,6 +89,7 @@ if (!$all_core_loaded) {
  * ✅ PASO 5: Cargar archivos OPCIONALES
  */
 $optional_files = array(
+    'includes/class-spamguard-stats.php',
     'includes/api/class-api-cache.php',
     'includes/modules/antispam/class-spam-filter.php',
     'includes/modules/antispam/class-local-fallback.php',

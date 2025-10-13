@@ -70,17 +70,31 @@ class SpamGuard_Filter {
         );
         
         // Analizar con API
+        $start_time = microtime(true);
         $api = SpamGuard_API_Client::get_instance();
         $result = $api->analyze_comment($comment_for_analysis);
-        
+        $processing_time = (microtime(true) - $start_time) * 1000; // En milisegundos
+
+        // ✅ Registrar uso en la tabla spamguard_usage
+        if (isset($result['category']) && isset($result['confidence'])) {
+            $category = $result['category']; // 'spam' o 'ham'
+            $confidence = floatval($result['confidence']);
+            $risk_level = isset($result['risk_level']) ? $result['risk_level'] : 'low';
+            $cached = isset($result['cached']) ? $result['cached'] : false;
+
+            if (class_exists('SpamGuard_Core')) {
+                SpamGuard_Core::log_usage($category, $confidence, $risk_level, $processing_time, $cached);
+            }
+        }
+
         // Guardar resultado en el comentario (para después)
         $commentdata['spamguard_result'] = $result;
-        
+
         // Si es spam, manejar según configuración
         if (isset($result['is_spam']) && $result['is_spam']) {
             $this->handle_spam($commentdata, $result);
         }
-        
+
         return $commentdata;
     }
     

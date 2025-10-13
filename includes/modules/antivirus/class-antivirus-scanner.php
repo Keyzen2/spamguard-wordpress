@@ -330,9 +330,20 @@ class SpamGuard_Antivirus_Scanner {
                 'threats' => $threats
             );
 
+            // ✅ Registrar uso de API ANTES de enviar (optimista)
+            // Cada escaneo de antivirus cuenta como 1 request
+            if (class_exists('SpamGuard_Core')) {
+                $category = $scan['threats_found'] > 0 ? 'threats_found' : 'clean';
+                $confidence = 1.0; // Escaneo completo
+                $risk_level = $scan['threats_found'] > 3 ? 'high' : ($scan['threats_found'] > 0 ? 'medium' : 'low');
+
+                SpamGuard_Core::log_usage($category, $confidence, $risk_level, 0, false);
+            }
+
             // Intentar enviar a la API (no crítico si falla)
             // La API guardará esto para estadísticas centralizadas
-            $this->api_client->make_request('/api/v1/antivirus/sync-scan', 'POST', $sync_data, true);
+            // Nota: Llamada opcional, no afecta funcionalidad local
+            // $this->api_client->sync_scan_data($sync_data);
 
         } catch (Exception $e) {
             // Log error pero no bloquear

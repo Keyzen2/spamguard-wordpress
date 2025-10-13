@@ -469,11 +469,11 @@ class SpamGuard_Antivirus_Dashboard {
                 $button.prop('disabled', true).text('<?php _e('Starting...', 'spamguard'); ?>');
                 
                 $.ajax({
-                    url: ajaxurl,
+                    url: spamguardData.ajaxurl || ajaxurl,
                     type: 'POST',
                     data: {
                         action: 'spamguard_start_scan',
-                        nonce: '<?php echo wp_create_nonce('spamguard_ajax'); ?>',
+                        nonce: spamguardData.nonce || '<?php echo wp_create_nonce('spamguard_ajax'); ?>',
                         scan_type: scanType
                     },
                     success: function(response) {
@@ -506,11 +506,11 @@ class SpamGuard_Antivirus_Dashboard {
                 
                 progressInterval = setInterval(function() {
                     $.ajax({
-                        url: ajaxurl,
+                        url: spamguardData.ajaxurl || ajaxurl,
                         type: 'POST',
                         data: {
                             action: 'spamguard_scan_progress',
-                            nonce: '<?php echo wp_create_nonce('spamguard_ajax'); ?>',
+                            nonce: spamguardData.nonce || '<?php echo wp_create_nonce('spamguard_ajax'); ?>',
                             scan_id: currentScanId
                         },
                         success: function(response) {
@@ -552,11 +552,11 @@ class SpamGuard_Antivirus_Dashboard {
                 $button.prop('disabled', true).text('<?php _e('Processing...', 'spamguard'); ?>');
                 
                 $.ajax({
-                    url: ajaxurl,
+                    url: spamguardData.ajaxurl || ajaxurl,
                     type: 'POST',
                     data: {
                         action: 'spamguard_quarantine_threat',
-                        nonce: '<?php echo wp_create_nonce('spamguard_ajax'); ?>',
+                        nonce: spamguardData.nonce || '<?php echo wp_create_nonce('spamguard_ajax'); ?>',
                         threat_id: threatId
                     },
                     success: function(response) {
@@ -592,11 +592,11 @@ class SpamGuard_Antivirus_Dashboard {
                 
                 // Just mark as resolved in DB
                 $.ajax({
-                    url: ajaxurl,
+                    url: spamguardData.ajaxurl || ajaxurl,
                     type: 'POST',
                     data: {
                         action: 'spamguard_ignore_threat',
-                        nonce: '<?php echo wp_create_nonce('spamguard_ajax'); ?>',
+                        nonce: spamguardData.nonce || '<?php echo wp_create_nonce('spamguard_ajax'); ?>',
                         threat_id: threatId
                     },
                     success: function(response) {
