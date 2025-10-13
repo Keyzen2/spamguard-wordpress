@@ -191,17 +191,28 @@ class SpamGuard {
      * ✅ Cargar assets del admin
      */
     public function enqueue_admin_assets($hook) {
+        // Solo cargar en páginas de SpamGuard
         if (strpos($hook, 'spamguard') === false) {
             return;
         }
-        
+
+        // CSS principal
         wp_enqueue_style(
             'spamguard-admin',
             SPAMGUARD_PLUGIN_URL . 'assets/css/admin.css',
             array(),
             SPAMGUARD_VERSION
         );
-        
+
+        // CSS del dashboard unificado
+        wp_enqueue_style(
+            'spamguard-dashboard',
+            SPAMGUARD_PLUGIN_URL . 'assets/css/dashboard-unified.css',
+            array('spamguard-admin'),
+            SPAMGUARD_VERSION
+        );
+
+        // JavaScript principal
         wp_enqueue_script(
             'spamguard-admin',
             SPAMGUARD_PLUGIN_URL . 'assets/js/admin.js',
@@ -209,17 +220,25 @@ class SpamGuard {
             SPAMGUARD_VERSION,
             true
         );
-        
+
+        // Localización
         wp_localize_script('spamguard-admin', 'spamguardData', array(
             'ajaxurl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('spamguard_ajax'),
+            'pluginUrl' => SPAMGUARD_PLUGIN_URL,
             'i18n' => array(
                 'confirmDelete' => __('Are you sure?', 'spamguard'),
                 'error' => __('An error occurred', 'spamguard'),
                 'success' => __('Success', 'spamguard'),
-                'loading' => __('Loading...', 'spamguard')
+                'loading' => __('Loading...', 'spamguard'),
+                'scanning' => __('Scanning...', 'spamguard'),
+                'completed' => __('Completed', 'spamguard'),
+                'failed' => __('Failed', 'spamguard')
             )
         ));
+
+        // Enqueue dashicons si no está cargado
+        wp_enqueue_style('dashicons');
     }
     
     /**
