@@ -451,8 +451,274 @@ class SpamGuard_API_Client {
         } else {
             $ip = '0.0.0.0';
         }
-        
+
         // Validar IP
         return filter_var($ip, FILTER_VALIDATE_IP) ? $ip : '0.0.0.0';
+    }
+
+    // ============================================
+    // VULNERABILITIES API METHODS
+    // ============================================
+
+    /**
+     * ✅ Verificar vulnerabilidades en componentes
+     *
+     * @param array $components Lista de componentes a verificar
+     * @return array|WP_Error Resultado del check o error
+     */
+    public function check_vulnerabilities($components) {
+        if (empty($components) || !is_array($components)) {
+            return array(
+                'success' => false,
+                'message' => __('Invalid components data', 'spamguard'),
+                'total_checked' => 0,
+                'vulnerable_count' => 0,
+                'vulnerable_components' => array()
+            );
+        }
+
+        $data = array('components' => $components);
+
+        $result = $this->make_request('/api/v1/vulnerabilities/check', 'POST', $data, true);
+
+        if (is_wp_error($result)) {
+            return $result;
+        }
+
+        return $result;
+    }
+
+    /**
+     * ✅ Obtener vulnerabilidades de un plugin específico
+     *
+     * @param string $plugin_slug Slug del plugin
+     * @return array|WP_Error Vulnerabilidades encontradas o error
+     */
+    public function get_plugin_vulnerabilities($plugin_slug) {
+        $result = $this->make_request('/api/v1/vulnerabilities/plugin/' . urlencode($plugin_slug), 'GET', null, true);
+
+        if (is_wp_error($result)) {
+            return $result;
+        }
+
+        return $result;
+    }
+
+    /**
+     * ✅ Obtener vulnerabilidades de un theme específico
+     *
+     * @param string $theme_slug Slug del theme
+     * @return array|WP_Error Vulnerabilidades encontradas o error
+     */
+    public function get_theme_vulnerabilities($theme_slug) {
+        $result = $this->make_request('/api/v1/vulnerabilities/theme/' . urlencode($theme_slug), 'GET', null, true);
+
+        if (is_wp_error($result)) {
+            return $result;
+        }
+
+        return $result;
+    }
+
+    /**
+     * ✅ Obtener estadísticas de vulnerabilidades
+     *
+     * @return array|WP_Error Estadísticas o error
+     */
+    public function get_vulnerability_stats() {
+        $result = $this->make_request('/api/v1/vulnerabilities/stats', 'GET', null, true);
+
+        if (is_wp_error($result)) {
+            return array(
+                'success' => false,
+                'total_vulnerabilities' => 0,
+                'by_severity' => array(
+                    'critical' => 0,
+                    'high' => 0,
+                    'medium' => 0,
+                    'low' => 0
+                ),
+                'by_type' => array(
+                    'plugin' => 0,
+                    'theme' => 0,
+                    'core' => 0
+                ),
+                'error' => $result->get_error_message()
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * ✅ Buscar vulnerabilidades por término
+     *
+     * @param string $query Término de búsqueda
+     * @param array $filters Filtros adicionales (component_type, severity)
+     * @return array|WP_Error Resultados de búsqueda o error
+     */
+    public function search_vulnerabilities($query, $filters = array()) {
+        $params = array('query' => $query);
+
+        if (isset($filters['component_type'])) {
+            $params['component_type'] = $filters['component_type'];
+        }
+
+        if (isset($filters['severity'])) {
+            $params['severity'] = $filters['severity'];
+        }
+
+        $url = '/api/v1/vulnerabilities/search?' . http_build_query($params);
+
+        $result = $this->make_request($url, 'GET', null, true);
+
+        if (is_wp_error($result)) {
+            return $result;
+        }
+
+        return $result;
+    }
+
+    // ============================================
+    // ANTIVIRUS API METHODS
+    // ============================================
+
+    /**
+     * ✅ Iniciar escaneo antivirus
+     *
+     * @param string $scan_type Tipo de escaneo: quick, full, custom
+     * @param array $paths Rutas personalizadas (solo para custom)
+     * @param int $max_size_mb Tamaño máximo de archivo en MB
+     * @return array|WP_Error Resultado con scan_id o error
+     */
+    public function start_antivirus_scan($scan_type = 'quick', $paths = null, $max_size_mb = 10) {
+        $data = array(
+            'scan_type' => $scan_type,
+            'max_size_mb' => $max_size_mb
+        );
+
+        if ($scan_type === 'custom' && !empty($paths)) {
+            $data['paths'] = $paths;
+        }
+
+        $result = $this->make_request('/api/v1/antivirus/scan/start', 'POST', $data, true);
+
+        if (is_wp_error($result)) {
+            return $result;
+        }
+
+        return $result;
+    }
+
+    /**
+     * ✅ Obtener progreso de un escaneo
+     *
+     * @param string $scan_id ID del escaneo
+     * @return array|WP_Error Progreso del escaneo o error
+     */
+    public function get_scan_progress($scan_id) {
+        $result = $this->make_request('/api/v1/antivirus/scan/' . urlencode($scan_id) . '/progress', 'GET', null, true);
+
+        if (is_wp_error($result)) {
+            return array(
+                'scan_id' => $scan_id,
+                'status' => 'error',
+                'progress' => 0,
+                'files_scanned' => 0,
+                'threats_found' => 0,
+                'error' => $result->get_error_message()
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * ✅ Obtener resultados de un escaneo
+     *
+     * @param string $scan_id ID del escaneo
+     * @return array|WP_Error Resultados completos o error
+     */
+    public function get_scan_results($scan_id) {
+        $result = $this->make_request('/api/v1/antivirus/scan/' . urlencode($scan_id) . '/results', 'GET', null, true);
+
+        if (is_wp_error($result)) {
+            return $result;
+        }
+
+        return $result;
+    }
+
+    /**
+     * ✅ Obtener escaneos recientes
+     *
+     * @param int $limit Número de escaneos a obtener
+     * @return array|WP_Error Lista de escaneos o error
+     */
+    public function get_recent_scans($limit = 10) {
+        $result = $this->make_request('/api/v1/antivirus/scans/recent?limit=' . intval($limit), 'GET', null, true);
+
+        if (is_wp_error($result)) {
+            return array(
+                'scans' => array(),
+                'total' => 0,
+                'error' => $result->get_error_message()
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * ✅ Obtener estadísticas del antivirus
+     *
+     * @return array|WP_Error Estadísticas o error
+     */
+    public function get_antivirus_stats() {
+        $result = $this->make_request('/api/v1/antivirus/stats', 'GET', null, true);
+
+        if (is_wp_error($result)) {
+            return array(
+                'total_scans' => 0,
+                'active_threats' => 0,
+                'threats_by_severity' => array(),
+                'last_scan' => null,
+                'error' => $result->get_error_message()
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * ✅ Poner amenaza en cuarentena
+     *
+     * @param string $threat_id ID de la amenaza
+     * @return array|WP_Error Resultado de la operación o error
+     */
+    public function quarantine_threat($threat_id) {
+        $result = $this->make_request('/api/v1/antivirus/threat/' . urlencode($threat_id) . '/quarantine', 'POST', null, true);
+
+        if (is_wp_error($result)) {
+            return $result;
+        }
+
+        return $result;
+    }
+
+    /**
+     * ✅ Ignorar amenaza (marcar como falso positivo)
+     *
+     * @param string $threat_id ID de la amenaza
+     * @return array|WP_Error Resultado de la operación o error
+     */
+    public function ignore_threat($threat_id) {
+        $result = $this->make_request('/api/v1/antivirus/threat/' . urlencode($threat_id) . '/ignore', 'DELETE', null, true);
+
+        if (is_wp_error($result)) {
+            return $result;
+        }
+
+        return $result;
     }
 }

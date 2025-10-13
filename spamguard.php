@@ -159,13 +159,22 @@ class SpamGuard {
      * ✅ Inicializar módulos activos
      */
     private function init_active_modules() {
+        // Anti-Spam filter
         if (class_exists('SpamGuard_Filter')) {
             SpamGuard_Filter::get_instance();
         }
-        
+
+        // Antivirus Scanner
         if (get_option('spamguard_antivirus_enabled', true)) {
             if (class_exists('SpamGuard_Antivirus_Scanner')) {
                 SpamGuard_Antivirus_Scanner::get_instance();
+            }
+        }
+
+        // Vulnerability Checker
+        if (get_option('spamguard_vulnerabilities_enabled', true)) {
+            if (class_exists('SpamGuard_Vulnerability_Checker')) {
+                SpamGuard_Vulnerability_Checker::get_instance();
             }
         }
     }
