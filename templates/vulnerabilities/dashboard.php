@@ -102,10 +102,10 @@ if (isset($_POST['scan_now']) && check_admin_referer('spamguard_scan_vulnerabili
             <?php _e('Scan your WordPress core, plugins, and themes for known security vulnerabilities from the CVE database.', 'spamguard'); ?>
         </p>
 
-        <form method="post" style="margin-top: 20px;">
+        <form method="post" style="margin-top: 20px;" onsubmit="document.getElementById('scan-btn').disabled=true; document.getElementById('scan-btn').innerHTML='<span class=\'dashicons dashicons-update spin\' style=\'animation: rotation 2s infinite linear;\'></span> <?php _e('Scanning...', 'spamguard'); ?>'; return true;">
             <?php wp_nonce_field('spamguard_scan_vulnerabilities'); ?>
 
-            <button type="submit" name="scan_now" class="button button-primary button-hero">
+            <button type="submit" name="scan_now" id="scan-btn" class="button button-primary button-hero">
                 <span class="dashicons dashicons-update"></span>
                 <?php _e('Scan Now', 'spamguard'); ?>
             </button>
@@ -341,4 +341,9 @@ jQuery(document).ready(function($) {
         }, 500);
     }
 });
+
+// Add CSS for spinner animation
+var style = document.createElement('style');
+style.innerHTML = '@keyframes rotation { from { transform: rotate(0deg); } to { transform: rotate(359deg); } } .spin { display: inline-block; }';
+document.head.appendChild(style);
 </script>

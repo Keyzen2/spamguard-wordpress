@@ -126,7 +126,8 @@ class SpamGuard_Antivirus_Scanner {
 
         // AJAX handlers
         add_action('wp_ajax_spamguard_start_scan', array($this, 'ajax_start_scan'));
-        add_action('wp_ajax_spamguard_get_scan_progress', array($this, 'ajax_get_scan_progress'));
+        add_action('wp_ajax_spamguard_scan_progress', array($this, 'ajax_get_scan_progress')); // Nombre usado en JS
+        add_action('wp_ajax_spamguard_get_scan_progress', array($this, 'ajax_get_scan_progress')); // Compatibilidad
         add_action('wp_ajax_spamguard_get_scan_results', array($this, 'ajax_get_scan_results'));
         add_action('wp_ajax_spamguard_quarantine_threat', array($this, 'ajax_quarantine_threat'));
         add_action('wp_ajax_spamguard_ignore_threat', array($this, 'ajax_ignore_threat'));
@@ -159,7 +160,7 @@ class SpamGuard_Antivirus_Scanner {
         $wpdb->insert($table, array(
             'id' => $scan_id,
             'scan_type' => $scan_type,
-            'status' => 'pending',
+            'status' => 'running',  // ✅ Cambiar a 'running' inmediatamente
             'started_at' => current_time('mysql'),
             'files_scanned' => 0,
             'threats_found' => 0,
@@ -170,11 +171,27 @@ class SpamGuard_Antivirus_Scanner {
         // 4. Guardar lista de archivos en transient
         set_transient('spamguard_scan_files_' . $scan_id, $files, HOUR_IN_SECONDS);
 
-        // 5. Programar procesamiento en background
-        wp_schedule_single_event(time(), 'spamguard_process_scan', array($scan_id));
-        spawn_cron();
+        // ✅ 5. Ejecutar escaneo inmediatamente en lugar de usar cron
+        // Esto garantiza que el progreso sea visible de inmediato
+        $this->process_scan_async($scan_id);
 
         return $scan_id;
+    }
+
+    /**
+     * ✅ Procesar escaneo de forma asíncrona (sin bloquear)
+     */
+    private function process_scan_async($scan_id) {
+        // Intentar ejecutar en background
+        if (function_exists('fastcgi_finish_request')) {
+            // Para FastCGI - enviar respuesta al cliente primero
+            fastcgi_finish_request();
+            $this->process_scan($scan_id);
+        } else {
+            // Fallback: usar cron como backup
+            wp_schedule_single_event(time(), 'spamguard_process_scan', array($scan_id));
+            spawn_cron();
+        }
     }
 
     /**

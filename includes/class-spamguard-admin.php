@@ -59,6 +59,16 @@ class SpamGuard_Admin {
             array($this, 'render_unified_dashboard')
         );
         
+        // Submenú: Anti-Spam
+        add_submenu_page(
+            'spamguard',
+            __('Anti-Spam', 'spamguard'),
+            __('Anti-Spam', 'spamguard'),
+            'manage_options',
+            'spamguard-antispam',
+            array($this, 'render_antispam_page')
+        );
+
         // Submenú: Antivirus (dashboard propio)
         add_submenu_page(
             'spamguard',
@@ -68,7 +78,7 @@ class SpamGuard_Admin {
             'spamguard-antivirus',
             array($this, 'render_antivirus_page')
         );
-        
+
         // ✅ Submenú: Vulnerabilities (dashboard propio)
         add_submenu_page(
             'spamguard',
@@ -78,7 +88,7 @@ class SpamGuard_Admin {
             'spamguard-vulnerabilities',
             array($this, 'render_vulnerabilities_page')
         );
-        
+
         // Submenú: Settings
         add_submenu_page(
             'spamguard',
@@ -110,11 +120,33 @@ class SpamGuard_Admin {
     public function render_vulnerabilities_page() {
         // Cargar template
         $template = SPAMGUARD_PLUGIN_DIR . 'templates/vulnerabilities/dashboard.php';
-        
+
         if (file_exists($template)) {
             include $template;
         } else {
             echo '<div class="wrap"><h1>Vulnerabilities</h1><p>Template not found</p></div>';
+        }
+    }
+
+    /**
+     * ✅ Renderizar página de Anti-Spam
+     */
+    public function render_antispam_page() {
+        // Verificar permisos
+        if (!current_user_can('manage_options')) {
+            wp_die(__('You do not have sufficient permissions to access this page.', 'spamguard'));
+        }
+
+        // Cargar template
+        $template = SPAMGUARD_PLUGIN_DIR . 'templates/admin-logs.php';
+
+        if (file_exists($template)) {
+            include $template;
+        } else {
+            echo '<div class="wrap">';
+            echo '<h1>' . __('Anti-Spam Logs', 'spamguard') . '</h1>';
+            echo '<p>' . __('Template not found. Please check if templates/admin-logs.php exists.', 'spamguard') . '</p>';
+            echo '</div>';
         }
     }
     
