@@ -89,6 +89,26 @@ class SpamGuard_Admin {
             array($this, 'render_vulnerabilities_page')
         );
 
+        // ✅ Submenú: Whitelist/Blacklist
+        add_submenu_page(
+            'spamguard',
+            __('Whitelist / Blacklist', 'spamguard'),
+            __('Lists', 'spamguard'),
+            'manage_options',
+            'spamguard-lists',
+            array($this, 'render_lists_page')
+        );
+
+        // ✅ Submenú: Quarantine
+        add_submenu_page(
+            'spamguard',
+            __('Quarantine', 'spamguard'),
+            __('Quarantine', 'spamguard'),
+            'manage_options',
+            'spamguard-quarantine',
+            array($this, 'render_quarantine_page')
+        );
+
         // Submenú: Settings
         add_submenu_page(
             'spamguard',
@@ -125,6 +145,50 @@ class SpamGuard_Admin {
             include $template;
         } else {
             echo '<div class="wrap"><h1>Vulnerabilities</h1><p>Template not found</p></div>';
+        }
+    }
+
+    /**
+     * ✅ Renderizar página de Whitelist/Blacklist
+     */
+    public function render_lists_page() {
+        // Verificar permisos
+        if (!current_user_can('manage_options')) {
+            wp_die(__('You do not have sufficient permissions to access this page.', 'spamguard'));
+        }
+
+        // Cargar template
+        $template = SPAMGUARD_PLUGIN_DIR . 'templates/lists-manager.php';
+
+        if (file_exists($template)) {
+            include $template;
+        } else {
+            echo '<div class="wrap">';
+            echo '<h1>' . __('Whitelist & Blacklist Manager', 'spamguard') . '</h1>';
+            echo '<p>' . __('Template not found.', 'spamguard') . '</p>';
+            echo '</div>';
+        }
+    }
+
+    /**
+     * ✅ Renderizar página de Quarantine
+     */
+    public function render_quarantine_page() {
+        // Verificar permisos
+        if (!current_user_can('manage_options')) {
+            wp_die(__('You do not have sufficient permissions to access this page.', 'spamguard'));
+        }
+
+        // Cargar template
+        $template = SPAMGUARD_PLUGIN_DIR . 'templates/quarantine-dashboard.php';
+
+        if (file_exists($template)) {
+            include $template;
+        } else {
+            echo '<div class="wrap">';
+            echo '<h1>' . __('Quarantine Manager', 'spamguard') . '</h1>';
+            echo '<p>' . __('Template not found.', 'spamguard') . '</p>';
+            echo '</div>';
         }
     }
 

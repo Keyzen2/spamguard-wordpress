@@ -90,13 +90,17 @@ if (!$all_core_loaded) {
  */
 $optional_files = array(
     'includes/class-spamguard-stats.php',
+    'includes/class-spamguard-lists.php',
+    'includes/class-spamguard-exporter.php',
     'includes/api/class-api-cache.php',
     'includes/modules/antispam/class-spam-filter.php',
     'includes/modules/antispam/class-local-fallback.php',
     'includes/dashboard/class-dashboard-controller.php',
     'includes/dashboard/class-antivirus-dashboard.php',
+    'includes/dashboard/class-unified-dashboard-v2.php',
     'includes/modules/antivirus/class-antivirus-scanner.php',
     'includes/modules/antivirus/class-antivirus-results.php',
+    'includes/modules/antivirus/class-quarantine-manager.php',
     'includes/modules/vulnerabilities/class-vulnerability-checker.php',
 );
 
@@ -137,19 +141,29 @@ class SpamGuard {
         if (class_exists('SpamGuard_Admin')) {
             SpamGuard_Admin::get_instance();
         }
-        
+
         if (class_exists('SpamGuard_Core')) {
             SpamGuard_Core::get_instance();
         }
-        
+
         if (class_exists('SpamGuard_API_Client')) {
             SpamGuard_API_Client::get_instance();
         }
-        
+
         if (class_exists('SpamGuard_Dashboard_Controller')) {
             SpamGuard_Dashboard_Controller::get_instance();
         }
-        
+
+        // Exporter (always available)
+        if (class_exists('SpamGuard_Exporter')) {
+            SpamGuard_Exporter::get_instance();
+        }
+
+        // Quarantine Manager (always available)
+        if (class_exists('SpamGuard_Quarantine_Manager')) {
+            SpamGuard_Quarantine_Manager::get_instance();
+        }
+
         // Solo si está configurado
         if ($this->is_configured()) {
             $this->init_active_modules();
@@ -401,8 +415,26 @@ class SpamGuard {
             KEY detected_at (detected_at)
         ) $charset_collate;";
         dbDelta($sql_vulnerabilities);
+
+        // Tabla de listas (whitelist/blacklist)
+        $table_lists = $wpdb->prefix . 'spamguard_lists';
+        $sql_lists = "CREATE TABLE IF NOT EXISTS $table_lists (
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            list_type varchar(20) NOT NULL,
+            entry_type varchar(20) NOT NULL,
+            value text NOT NULL,
+            reason varchar(255) DEFAULT NULL,
+            is_active tinyint(1) DEFAULT 1,
+            created_at datetime NOT NULL,
+            created_by bigint(20) DEFAULT 0,
+            PRIMARY KEY (id),
+            KEY list_type (list_type),
+            KEY entry_type (entry_type),
+            KEY is_active (is_active)
+        ) $charset_collate;";
+        dbDelta($sql_lists);
     }
-    
+
     /**
      * ✅ Opciones por defecto
      */
