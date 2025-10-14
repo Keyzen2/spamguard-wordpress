@@ -92,7 +92,9 @@ $optional_files = array(
     'includes/class-spamguard-stats.php',
     'includes/class-spamguard-lists.php',
     'includes/class-spamguard-exporter.php',
+    'includes/integrations/class-forms-integration.php',
     'includes/api/class-api-cache.php',
+    'includes/api/class-api-cache-advanced.php',
     'includes/modules/antispam/class-spam-filter.php',
     'includes/modules/antispam/class-local-fallback.php',
     'includes/dashboard/class-dashboard-controller.php',
@@ -162,6 +164,16 @@ class SpamGuard {
         // Quarantine Manager (always available)
         if (class_exists('SpamGuard_Quarantine_Manager')) {
             SpamGuard_Quarantine_Manager::get_instance();
+        }
+
+        // Forms Integration (always available)
+        if (class_exists('SpamGuard_Forms_Integration')) {
+            SpamGuard_Forms_Integration::get_instance();
+        }
+
+        // API Cache Advanced (always available)
+        if (class_exists('SpamGuard_API_Cache_Advanced')) {
+            SpamGuard_API_Cache_Advanced::get_instance();
         }
 
         // Solo si está configurado
@@ -433,6 +445,11 @@ class SpamGuard {
             KEY is_active (is_active)
         ) $charset_collate;";
         dbDelta($sql_lists);
+
+        // Tabla de caché avanzado (para optimización de API)
+        if (class_exists('SpamGuard_API_Cache_Advanced')) {
+            SpamGuard_API_Cache_Advanced::create_table();
+        }
     }
 
     /**

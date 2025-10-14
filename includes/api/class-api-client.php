@@ -292,7 +292,7 @@ class SpamGuard_API_Client {
     }
     
     /**
-     * ✅ Analizar comentario (CON autenticación)
+     * ✅ Analizar comentario (CON autenticación) + CACHÉ INTELIGENTE
      */
     public function analyze_comment($comment) {
         // ✅ Validar datos mínimos
@@ -305,7 +305,7 @@ class SpamGuard_API_Client {
                 'error' => 'empty_content'
             );
         }
-        
+
         $data = array(
             'content' => $comment['comment_content'],
             'author' => isset($comment['comment_author']) ? $comment['comment_author'] : '',
@@ -314,19 +314,46 @@ class SpamGuard_API_Client {
             'author_ip' => isset($comment['comment_author_IP']) ? $comment['comment_author_IP'] : $this->get_user_ip(),
             'post_id' => isset($comment['comment_post_ID']) ? intval($comment['comment_post_ID']) : 0
         );
-        
+
+        // 🚀 NUEVO: Verificar caché primero
+        if (class_exists('SpamGuard_API_Cache_Advanced')) {
+            $cache = SpamGuard_API_Cache_Advanced::get_instance();
+
+            // Intentar obtener respuesta exacta del caché
+            $cached_result = $cache->get('spam_check', $data);
+
+            if ($cached_result !== false) {
+                // ✅ Cache HIT - ahorró un API request
+                $this->record_cache_hit();
+                return $cached_result;
+            }
+
+            // Intentar buscar contenido similar
+            $similar_result = $cache->get_by_content($comment['comment_content'], 'spam_check');
+
+            if ($similar_result !== false) {
+                // ✅ Similar content found - ahorró un API request
+                $this->record_cache_hit();
+                return $similar_result;
+            }
+        }
+
+        // 📞 LLAMAR A LA API (no hay cache)
         $result = $this->make_request('/api/v1/analyze', 'POST', $data, true); // ✅ true = usar API key
-        
+
+        // Registrar uso de API
+        $this->record_api_usage('spam_check');
+
         // ✅ Si hay error, usar fallback local
         if (is_wp_error($result)) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
                 error_log('[SpamGuard] API error, using local fallback: ' . $result->get_error_message());
             }
-            
+
             if (class_exists('SpamGuard_Local_Fallback')) {
                 return SpamGuard_Local_Fallback::get_instance()->analyze($comment);
             }
-            
+
             // Safe fallback final
             return array(
                 'is_spam' => false,
@@ -339,8 +366,46 @@ class SpamGuard_API_Client {
                 'error' => $result->get_error_message()
             );
         }
-        
+
+        // 💾 Guardar en caché para futuros requests
+        if (class_exists('SpamGuard_API_Cache_Advanced') && !is_wp_error($result)) {
+            $cache = SpamGuard_API_Cache_Advanced::get_instance();
+            $cache->set('spam_check', $data, $result);
+        }
+
         return $result;
+    }
+
+    /**
+     * 🆕 Registrar uso de API request
+     */
+    private function record_api_usage($endpoint_type) {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'spamguard_usage';
+
+        // Verificar si la tabla existe
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table'") === $table;
+
+        if ($table_exists) {
+            $wpdb->insert(
+                $table,
+                array(
+                    'endpoint' => $endpoint_type,
+                    'created_at' => current_time('mysql')
+                ),
+                array('%s', '%s')
+            );
+        }
+    }
+
+    /**
+     * 🆕 Registrar cache hit (para estadísticas)
+     */
+    private function record_cache_hit() {
+        // Incrementar contador de cache hits
+        $current = get_option('spamguard_cache_hits_month', 0);
+        update_option('spamguard_cache_hits_month', $current + 1);
     }
     
     /**

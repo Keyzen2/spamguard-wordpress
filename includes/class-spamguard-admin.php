@@ -648,8 +648,160 @@ class SpamGuard_Admin {
                         </td>
                     </tr>
                     
+                    <!-- ======================================== -->
+                    <!-- FORMS INTEGRATION SETTINGS -->
+                    <!-- ======================================== -->
+                    <tr>
+                        <th colspan="2">
+                            <h2><?php _e('Forms Integration', 'spamguard'); ?></h2>
+                            <p class="description">
+                                <?php _e('Enable spam protection for popular form plugins', 'spamguard'); ?>
+                            </p>
+                        </th>
+                    </tr>
+
+                    <?php
+                    // Get forms integration instance
+                    if (class_exists('SpamGuard_Forms_Integration')) {
+                        $forms_integration = SpamGuard_Forms_Integration::get_instance();
+                        $active_integrations = $forms_integration->get_active_integrations();
+                    } else {
+                        $active_integrations = array();
+                    }
+                    ?>
+
+                    <tr>
+                        <th scope="row"><?php _e('Contact Form 7', 'spamguard'); ?></th>
+                        <td>
+                            <label>
+                                <input type="checkbox"
+                                       name="spamguard_forms_contact_form_7_enabled"
+                                       value="1"
+                                       <?php checked(get_option('spamguard_forms_contact_form_7_enabled', true)); ?> />
+                                <?php _e('Enable spam protection for Contact Form 7', 'spamguard'); ?>
+                            </label>
+                            <?php if (isset($active_integrations['contact_form_7'])): ?>
+                                <p class="description">
+                                    ✅ <?php _e('Active - Contact Form 7 is installed and protected', 'spamguard'); ?>
+                                </p>
+                            <?php elseif (is_plugin_active('contact-form-7/wp-contact-form-7.php')): ?>
+                                <p class="description">
+                                    ⚠️ <?php _e('Contact Form 7 is installed but protection is disabled', 'spamguard'); ?>
+                                </p>
+                            <?php else: ?>
+                                <p class="description">
+                                    ℹ️ <?php _e('Contact Form 7 is not installed', 'spamguard'); ?>
+                                </p>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th scope="row"><?php _e('Gravity Forms', 'spamguard'); ?></th>
+                        <td>
+                            <label>
+                                <input type="checkbox"
+                                       name="spamguard_forms_gravity_forms_enabled"
+                                       value="1"
+                                       <?php checked(get_option('spamguard_forms_gravity_forms_enabled', true)); ?> />
+                                <?php _e('Enable spam protection for Gravity Forms', 'spamguard'); ?>
+                            </label>
+                            <?php if (isset($active_integrations['gravity_forms'])): ?>
+                                <p class="description">
+                                    ✅ <?php _e('Active - Gravity Forms is installed and protected', 'spamguard'); ?>
+                                </p>
+                            <?php elseif (class_exists('GFForms')): ?>
+                                <p class="description">
+                                    ⚠️ <?php _e('Gravity Forms is installed but protection is disabled', 'spamguard'); ?>
+                                </p>
+                            <?php else: ?>
+                                <p class="description">
+                                    ℹ️ <?php _e('Gravity Forms is not installed', 'spamguard'); ?>
+                                </p>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th scope="row"><?php _e('WPForms', 'spamguard'); ?></th>
+                        <td>
+                            <label>
+                                <input type="checkbox"
+                                       name="spamguard_forms_wpforms_enabled"
+                                       value="1"
+                                       <?php checked(get_option('spamguard_forms_wpforms_enabled', true)); ?> />
+                                <?php _e('Enable spam protection for WPForms', 'spamguard'); ?>
+                            </label>
+                            <?php if (isset($active_integrations['wpforms'])): ?>
+                                <p class="description">
+                                    ✅ <?php _e('Active - WPForms is installed and protected', 'spamguard'); ?>
+                                </p>
+                            <?php elseif (function_exists('wpforms')): ?>
+                                <p class="description">
+                                    ⚠️ <?php _e('WPForms is installed but protection is disabled', 'spamguard'); ?>
+                                </p>
+                            <?php else: ?>
+                                <p class="description">
+                                    ℹ️ <?php _e('WPForms is not installed', 'spamguard'); ?>
+                                </p>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th scope="row"><?php _e('Ninja Forms', 'spamguard'); ?></th>
+                        <td>
+                            <label>
+                                <input type="checkbox"
+                                       name="spamguard_forms_ninja_forms_enabled"
+                                       value="1"
+                                       <?php checked(get_option('spamguard_forms_ninja_forms_enabled', true)); ?> />
+                                <?php _e('Enable spam protection for Ninja Forms', 'spamguard'); ?>
+                            </label>
+                            <?php if (isset($active_integrations['ninja_forms'])): ?>
+                                <p class="description">
+                                    ✅ <?php _e('Active - Ninja Forms is installed and protected', 'spamguard'); ?>
+                                </p>
+                            <?php elseif (class_exists('Ninja_Forms')): ?>
+                                <p class="description">
+                                    ⚠️ <?php _e('Ninja Forms is installed but protection is disabled', 'spamguard'); ?>
+                                </p>
+                            <?php else: ?>
+                                <p class="description">
+                                    ℹ️ <?php _e('Ninja Forms is not installed', 'spamguard'); ?>
+                                </p>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th scope="row"><?php _e('Elementor Forms', 'spamguard'); ?></th>
+                        <td>
+                            <label>
+                                <input type="checkbox"
+                                       name="spamguard_forms_elementor_forms_enabled"
+                                       value="1"
+                                       <?php checked(get_option('spamguard_forms_elementor_forms_enabled', true)); ?> />
+                                <?php _e('Enable spam protection for Elementor Forms', 'spamguard'); ?>
+                            </label>
+                            <?php if (isset($active_integrations['elementor_forms'])): ?>
+                                <p class="description">
+                                    ✅ <?php _e('Active - Elementor Pro is installed and protected', 'spamguard'); ?>
+                                </p>
+                            <?php elseif (defined('ELEMENTOR_PRO_VERSION')): ?>
+                                <p class="description">
+                                    ⚠️ <?php _e('Elementor Pro is installed but protection is disabled', 'spamguard'); ?>
+                                </p>
+                            <?php else: ?>
+                                <p class="description">
+                                    ℹ️ <?php _e('Elementor Pro is not installed', 'spamguard'); ?>
+                                </p>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+
                     <?php endif; // Fin de if (!empty($api_key)) ?>
-                    
+
                 </table>
                 
                 <?php if (!empty($api_key)): ?>
@@ -758,7 +910,14 @@ class SpamGuard_Admin {
         update_option('spamguard_auto_scan', sanitize_text_field($_POST['spamguard_auto_scan']));
         update_option('spamguard_email_notifications', isset($_POST['spamguard_email_notifications']));
         update_option('spamguard_notification_email', sanitize_email($_POST['spamguard_notification_email']));
-        
+
+        // Forms Integration Settings
+        update_option('spamguard_forms_contact_form_7_enabled', isset($_POST['spamguard_forms_contact_form_7_enabled']));
+        update_option('spamguard_forms_gravity_forms_enabled', isset($_POST['spamguard_forms_gravity_forms_enabled']));
+        update_option('spamguard_forms_wpforms_enabled', isset($_POST['spamguard_forms_wpforms_enabled']));
+        update_option('spamguard_forms_ninja_forms_enabled', isset($_POST['spamguard_forms_ninja_forms_enabled']));
+        update_option('spamguard_forms_elementor_forms_enabled', isset($_POST['spamguard_forms_elementor_forms_enabled']));
+
         // Mensaje de éxito
         add_settings_error(
             'spamguard_messages',

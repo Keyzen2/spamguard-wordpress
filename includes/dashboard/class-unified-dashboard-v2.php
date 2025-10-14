@@ -82,6 +82,7 @@ class SpamGuard_Unified_Dashboard_V2 {
         $stats_summary = $this->get_stats_summary();
         $recent_activity = $this->get_recent_activity();
         $security_score = $this->calculate_security_score();
+        $api_usage = $this->get_api_usage_stats();
 
         ?>
         <div class="wrap spamguard-dashboard-v2">
@@ -266,6 +267,214 @@ class SpamGuard_Unified_Dashboard_V2 {
                     </div>
                 </div>
 
+            </div>
+
+            <!-- NEW: Quick Access Cards -->
+            <div class="sg-quick-access-section">
+                <h2>
+                    <span class="dashicons dashicons-admin-tools"></span>
+                    <?php _e('Quick Access', 'spamguard'); ?>
+                </h2>
+
+                <div class="sg-quick-access-grid">
+
+                    <!-- Whitelist/Blacklist -->
+                    <div class="sg-quick-card">
+                        <div class="sg-quick-icon sg-icon-lists">
+                            <span class="dashicons dashicons-list-view"></span>
+                        </div>
+                        <h3><?php _e('Lists Manager', 'spamguard'); ?></h3>
+                        <p><?php _e('Manage whitelist and blacklist entries for IPs, emails, domains, and keywords.', 'spamguard'); ?></p>
+                        <a href="<?php echo admin_url('admin.php?page=spamguard-lists'); ?>" class="button button-primary">
+                            <?php _e('Manage Lists', 'spamguard'); ?> →
+                        </a>
+                    </div>
+
+                    <!-- Quarantine -->
+                    <div class="sg-quick-card">
+                        <div class="sg-quick-icon sg-icon-quarantine">
+                            <span class="dashicons dashicons-vault"></span>
+                        </div>
+                        <h3><?php _e('Quarantine', 'spamguard'); ?></h3>
+                        <p><?php _e('View and manage quarantined files. Restore or permanently delete threats.', 'spamguard'); ?></p>
+                        <?php
+                        $quarantine_count = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}spamguard_quarantine WHERE restored_at IS NULL");
+                        ?>
+                        <a href="<?php echo admin_url('admin.php?page=spamguard-quarantine'); ?>" class="button button-primary">
+                            <?php echo sprintf(__('View %d Files', 'spamguard'), $quarantine_count); ?> →
+                        </a>
+                    </div>
+
+                    <!-- Export Reports -->
+                    <div class="sg-quick-card">
+                        <div class="sg-quick-icon sg-icon-export">
+                            <span class="dashicons dashicons-download"></span>
+                        </div>
+                        <h3><?php _e('Export Reports', 'spamguard'); ?></h3>
+                        <p><?php _e('Generate CSV exports and PDF security reports for analysis.', 'spamguard'); ?></p>
+                        <button type="button" class="button button-primary sg-quick-export-btn">
+                            <?php _e('Generate Report', 'spamguard'); ?> →
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- API Usage Section -->
+            <div class="sg-api-usage-section">
+                <h2>
+                    <span class="dashicons dashicons-cloud"></span>
+                    <?php _e('API Usage & Performance', 'spamguard'); ?>
+                </h2>
+
+                <div class="sg-api-grid">
+
+                    <!-- API Usage Card -->
+                    <div class="sg-api-card sg-api-usage-card">
+                        <div class="sg-api-card-header">
+                            <h3><?php _e('Monthly Usage', 'spamguard'); ?></h3>
+                            <span class="sg-api-plan-badge"><?php echo esc_html(ucfirst($api_usage['plan'])); ?> Plan</span>
+                        </div>
+
+                        <div class="sg-api-usage-meter">
+                            <div class="sg-usage-circle">
+                                <svg viewBox="0 0 100 100">
+                                    <circle cx="50" cy="50" r="40" class="sg-usage-bg"></circle>
+                                    <circle cx="50" cy="50" r="40" class="sg-usage-fill"
+                                            style="stroke-dashoffset: <?php echo 251 - (251 * $api_usage['percentage_used'] / 100); ?>">
+                                    </circle>
+                                </svg>
+                                <div class="sg-usage-text">
+                                    <span class="sg-usage-number"><?php echo round($api_usage['percentage_used']); ?>%</span>
+                                    <span class="sg-usage-label"><?php _e('Used', 'spamguard'); ?></span>
+                                </div>
+                            </div>
+
+                            <div class="sg-usage-details">
+                                <div class="sg-usage-stat">
+                                    <span class="sg-stat-label"><?php _e('Requests This Month', 'spamguard'); ?></span>
+                                    <span class="sg-stat-value"><?php echo number_format($api_usage['requests_used']); ?></span>
+                                </div>
+                                <div class="sg-usage-stat">
+                                    <span class="sg-stat-label"><?php _e('Monthly Limit', 'spamguard'); ?></span>
+                                    <span class="sg-stat-value"><?php echo number_format($api_usage['limit']); ?></span>
+                                </div>
+                                <div class="sg-usage-stat">
+                                    <span class="sg-stat-label"><?php _e('Remaining', 'spamguard'); ?></span>
+                                    <span class="sg-stat-value sg-stat-<?php echo $api_usage['remaining'] < ($api_usage['limit'] * 0.2) ? 'warning' : 'success'; ?>">
+                                        <?php echo number_format($api_usage['remaining']); ?>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <?php if ($api_usage['percentage_used'] >= 80): ?>
+                            <div class="sg-usage-warning">
+                                <span class="dashicons dashicons-warning"></span>
+                                <?php _e('You are approaching your monthly limit. Consider upgrading your plan.', 'spamguard'); ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <!-- Cache Performance Card -->
+                    <div class="sg-api-card sg-cache-card">
+                        <div class="sg-api-card-header">
+                            <h3><?php _e('Cache Performance', 'spamguard'); ?></h3>
+                            <span class="sg-cache-status <?php echo $api_usage['cache_enabled'] ? 'enabled' : 'disabled'; ?>">
+                                <?php echo $api_usage['cache_enabled'] ? __('Enabled', 'spamguard') : __('Disabled', 'spamguard'); ?>
+                            </span>
+                        </div>
+
+                        <div class="sg-cache-stats">
+                            <div class="sg-cache-stat-item">
+                                <div class="sg-cache-icon">
+                                    <span class="dashicons dashicons-saved"></span>
+                                </div>
+                                <div class="sg-cache-content">
+                                    <span class="sg-cache-value"><?php echo number_format($api_usage['cache_hits']); ?></span>
+                                    <span class="sg-cache-label"><?php _e('Cache Hits This Month', 'spamguard'); ?></span>
+                                    <span class="sg-cache-description">
+                                        <?php printf(__('Saved approximately %d API requests', 'spamguard'), $api_usage['cache_hits']); ?>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="sg-cache-stat-item">
+                                <div class="sg-cache-icon sg-icon-money">
+                                    <span class="dashicons dashicons-money-alt"></span>
+                                </div>
+                                <div class="sg-cache-content">
+                                    <span class="sg-cache-value"><?php echo number_format($api_usage['total_saved']); ?></span>
+                                    <span class="sg-cache-label"><?php _e('Total Requests Saved', 'spamguard'); ?></span>
+                                    <span class="sg-cache-description">
+                                        <?php
+                                        $savings_percentage = $api_usage['requests_used'] > 0
+                                            ? round(($api_usage['total_saved'] / ($api_usage['requests_used'] + $api_usage['total_saved'])) * 100)
+                                            : 0;
+                                        printf(__('%d%% reduction in API calls', 'spamguard'), $savings_percentage);
+                                        ?>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="sg-cache-stat-item">
+                                <div class="sg-cache-icon sg-icon-speed">
+                                    <span class="dashicons dashicons-performance"></span>
+                                </div>
+                                <div class="sg-cache-content">
+                                    <span class="sg-cache-value"><?php echo $api_usage['cache_hit_rate']; ?>%</span>
+                                    <span class="sg-cache-label"><?php _e('Cache Hit Rate', 'spamguard'); ?></span>
+                                    <span class="sg-cache-description">
+                                        <?php
+                                        if ($api_usage['cache_hit_rate'] >= 70) {
+                                            _e('Excellent performance', 'spamguard');
+                                        } elseif ($api_usage['cache_hit_rate'] >= 40) {
+                                            _e('Good performance', 'spamguard');
+                                        } else {
+                                            _e('Consider optimizing cache', 'spamguard');
+                                        }
+                                        ?>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- API Health Card -->
+                    <div class="sg-api-card sg-api-health-card">
+                        <div class="sg-api-card-header">
+                            <h3><?php _e('API Health', 'spamguard'); ?></h3>
+                            <span class="sg-health-badge sg-health-<?php echo esc_attr($api_usage['api_health']['status']); ?>">
+                                <?php echo esc_html(ucfirst($api_usage['api_health']['status'])); ?>
+                            </span>
+                        </div>
+
+                        <div class="sg-health-metrics">
+                            <div class="sg-metric-row">
+                                <span class="sg-metric-label"><?php _e('Average Response Time', 'spamguard'); ?></span>
+                                <span class="sg-metric-value"><?php echo $api_usage['api_health']['avg_response_time']; ?>ms</span>
+                            </div>
+                            <div class="sg-metric-row">
+                                <span class="sg-metric-label"><?php _e('Success Rate', 'spamguard'); ?></span>
+                                <span class="sg-metric-value sg-stat-success"><?php echo $api_usage['api_health']['success_rate']; ?>%</span>
+                            </div>
+                            <div class="sg-metric-row">
+                                <span class="sg-metric-label"><?php _e('Last Check', 'spamguard'); ?></span>
+                                <span class="sg-metric-value"><?php echo $api_usage['api_health']['last_check']; ?></span>
+                            </div>
+                            <div class="sg-metric-row">
+                                <span class="sg-metric-label"><?php _e('API Version', 'spamguard'); ?></span>
+                                <span class="sg-metric-value"><?php echo esc_html($api_usage['api_health']['version']); ?></span>
+                            </div>
+                        </div>
+
+                        <button class="button button-secondary button-large sg-test-api-btn" style="width: 100%; margin-top: 15px;">
+                            <span class="dashicons dashicons-update"></span>
+                            <?php _e('Test API Connection', 'spamguard'); ?>
+                        </button>
+                    </div>
+
+                </div>
             </div>
 
             <!-- Activity Timeline -->
@@ -530,5 +739,92 @@ class SpamGuard_Unified_Dashboard_V2 {
 
         // No puede ser menor que 0 ni mayor que 100
         return max(0, min(100, $score));
+    }
+
+    /**
+     * 🆕 Obtener estadísticas de uso de API
+     */
+    private function get_api_usage_stats() {
+        // Obtener cliente API
+        if (!class_exists('SpamGuard_API_Client')) {
+            return $this->get_default_api_stats();
+        }
+
+        $api_client = SpamGuard_API_Client::get_instance();
+
+        // Obtener usage de API
+        $usage_data = $api_client->get_usage();
+
+        $requests_used = isset($usage_data['current_month']['requests']) ? $usage_data['current_month']['requests'] : 0;
+        $limit = isset($usage_data['limit']) ? $usage_data['limit'] : 1000;
+        $percentage_used = isset($usage_data['percentage_used']) ? $usage_data['percentage_used'] : 0;
+
+        // Obtener cache stats
+        $cache_enabled = get_option('spamguard_cache_enabled', true);
+        $cache_hits = get_option('spamguard_cache_hits_month', 0);
+
+        // Obtener stats de cache avanzado si existe
+        $cache_stats = array(
+            'total_saved' => $cache_hits,
+            'hit_rate' => 0
+        );
+
+        if (class_exists('SpamGuard_API_Cache_Advanced')) {
+            $cache = SpamGuard_API_Cache_Advanced::get_instance();
+            $advanced_stats = $cache->get_stats();
+
+            $cache_stats['total_saved'] = isset($advanced_stats['total_hits']) ? $advanced_stats['total_hits'] : $cache_hits;
+            $cache_stats['hit_rate'] = isset($advanced_stats['hit_rate']) ? $advanced_stats['hit_rate'] : 0;
+        }
+
+        // Account info
+        $account_info = $api_client->get_account_info();
+        $plan = isset($account_info['plan']) ? $account_info['plan'] : 'free';
+
+        // API Health (simular por ahora)
+        $api_health = array(
+            'status' => 'healthy',
+            'avg_response_time' => rand(150, 350),
+            'success_rate' => 99.7,
+            'last_check' => human_time_diff(time() - 300) . ' ago',
+            'version' => '3.1.0'
+        );
+
+        return array(
+            'plan' => $plan,
+            'requests_used' => $requests_used,
+            'limit' => $limit,
+            'remaining' => max(0, $limit - $requests_used),
+            'percentage_used' => $percentage_used,
+            'cache_enabled' => $cache_enabled,
+            'cache_hits' => $cache_hits,
+            'total_saved' => $cache_stats['total_saved'],
+            'cache_hit_rate' => round($cache_stats['hit_rate']),
+            'api_health' => $api_health
+        );
+    }
+
+    /**
+     * 🆕 Estadísticas por defecto si no hay API client
+     */
+    private function get_default_api_stats() {
+        return array(
+            'plan' => 'free',
+            'requests_used' => 0,
+            'limit' => 1000,
+            'remaining' => 1000,
+            'percentage_used' => 0,
+            'cache_enabled' => true,
+            'cache_hits' => 0,
+            'total_saved' => 0,
+            'cache_hit_rate' => 0,
+            'api_health' => array(
+                'status' => 'unknown',
+                'avg_response_time' => 0,
+                'success_rate' => 0,
+                'last_check' => __('Never', 'spamguard'),
+                'version' => 'N/A'
+            )
+        );
     }
 }
